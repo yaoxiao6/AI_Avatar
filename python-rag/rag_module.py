@@ -1,4 +1,4 @@
-# rag.py
+# rag_module.py
 from langchain_core.globals import set_verbose, set_debug
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain.schema.output_parser import StrOutputParser
@@ -9,8 +9,7 @@ from langchain.schema.runnable import RunnablePassthrough
 from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_core.prompts import ChatPromptTemplate
 import logging
-from flask import Flask, request, jsonify
-import json
+import chromadb
 
 set_debug(True)
 set_verbose(True)
@@ -18,14 +17,31 @@ set_verbose(True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
 class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""
 
     def __init__(self, llm_model: str = "deepseek-r1:1.5B", embedding_model: str = "mxbai-embed-large"):
+        try:
+            self.embeddings = OllamaEmbeddings(model=embedding_model)
+            # Test the embeddings with a simple string
+            test_embedding = self.embeddings.embed_query("test")
+            logger.info("Embedding model initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize embedding model: {str(e)}")
+            raise
+
+        # embeddings = OllamaEmbeddings(model="mxbai-embed-large")
+        # try:
+        #     test_embedding = embeddings.embed_query("test")
+        #     print("Embedding successful!")
+        #     print(f"Embedding dimension: {len(test_embedding)}")
+        # except Exception as e:
+        #     print(f"Embedding failed: {str(e)}")
+
+
+        
         self.model = ChatOllama(model=llm_model)
-        self.embeddings = OllamaEmbeddings(model=embedding_model)
+        # self.embeddings = OllamaEmbeddings(model=embedding_model)
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
         self.prompt = ChatPromptTemplate.from_template(
             """
@@ -37,6 +53,7 @@ class ChatPDF:
         )
         self.vector_store = None
         self.retriever = None
+        self.client = chromadb.PersistentClient(path="chroma_db")
 
     def ingest(self, pdf_file_path: str) -> dict:
         """Ingest a PDF file and return status"""
@@ -45,12 +62,15 @@ class ChatPDF:
             docs = PyPDFLoader(file_path=pdf_file_path).load()
             chunks = self.text_splitter.split_documents(docs)
             chunks = filter_complex_metadata(chunks)
-
+            # print(f"Number of chunks: {len(chunks)}")
+            # print(f"Example chunk: {chunks[0]}")
+            print(f"self.embeddings: {self.embeddings}")
             self.vector_store = Chroma.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
-                persist_directory="chroma_db",
+                client=self.client,
             )
+
             logger.info("Ingestion completed successfully")
             return {"status": "success", "message": "Document ingested successfully"}
         except Exception as e:
@@ -114,45 +134,3 @@ class ChatPDF:
         except Exception as e:
             logger.error(f"Error clearing vector store: {str(e)}")
             return {"status": "error", "message": str(e)}
-
-# Initialize ChatPDF instance
-chat_pdf = ChatPDF()
-
-# Flask routes to handle requests from the Node.js server
-@app.route('/ingest', methods=['POST'])
-def ingest_document():
-    if 'file' not in request.files:
-        return jsonify({"status": "error", "message": "No file provided"}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"status": "error", "message": "No file selected"}), 400
-
-    # Save the file temporarily
-    temp_path = f"/tmp/{file.filename}"
-    file.save(temp_path)
-    
-    # Process the file
-    result = chat_pdf.ingest(temp_path)
-    return jsonify(result)
-
-@app.route('/ask', methods=['POST'])
-def ask_question():
-    data = request.json
-    if not data or 'query' not in data:
-        return jsonify({"status": "error", "message": "No query provided"}), 400
-    
-    result = chat_pdf.ask(
-        data['query'],
-        k=data.get('k', 5),
-        score_threshold=data.get('score_threshold', 0.2)
-    )
-    return jsonify(result)
-
-@app.route('/clear', methods=['POST'])
-def clear_store():
-    result = chat_pdf.clear()
-    return jsonify(result)
-
-if __name__ == '__main__':
-    app.run(port=5000)

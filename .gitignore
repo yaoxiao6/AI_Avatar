@@ -1,3 +1,5 @@
 package-lock.json
 **/node_modules
 .DS_Store
+**/__pycache__
+**/chroma_db
