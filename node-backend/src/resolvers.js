@@ -1,74 +1,94 @@
-
 // src/resolvers.js
 const axios = require('axios');
 const FormData = require('form-data');
 const { PYTHON_SERVICE_URL } = require('./config');
+const fs = require('fs');
+const { createWriteStream } = require('fs');
+const { finished } = require('stream/promises');
+const logger = require('./utils/logger');
 
 const resolvers = {
-    health: () => {
-        console.log('Health check endpoint called');
-        return 'OK';
-    },
-
-    ingestDocument: async ({ file }) => {
-        try {
-            console.log('Ingesting document...');
-            const { createReadStream, filename } = await file;
-            const stream = createReadStream();
-            
-            const formData = new FormData();
-            formData.append('file', stream, filename);
-
-            console.log(`Sending file ${filename} to Python service...`);
-            const response = await axios.post(`${PYTHON_SERVICE_URL}/ingest`, formData, {
-                headers: {
-                    ...formData.getHeaders(),
-                },
-            });
-
-            console.log('Ingestion response:', response.data);
-            return response.data;
-        } catch (error) {
-            console.error('Error during ingestion:', error);
-            return {
-                status: 'error',
-                message: error.message || 'Error during document ingestion'
-            };
+    Query: {
+        health: () => {
+            logger.info('Health check endpoint called');
+            return 'OK';
         }
     },
+    
+    Mutation: {
+        askQuestion: async (_, { query, k = 5, scoreThreshold = 0.2 }) => {
+            logger.info('Processing question');
+            const startTime = Date.now();
+            try {
+                logger.info('Processing question', {
+                    query,
+                    k,
+                    scoreThreshold
+                });
+        
+                logger.debug(`Making request to ${PYTHON_SERVICE_URL}/ask`);
+        
+                const response = await axios.post(`${PYTHON_SERVICE_URL}/ask`, {
+                    query,
+                    k,
+                    score_threshold: scoreThreshold
+                });
+        
+                const duration = Date.now() - startTime;
+                logger.info('Question processing completed', {
+                    query,
+                    duration,
+                    responseStatus: response.data.status
+                });
+        
+                return response.data;
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                
+                logger.error('Error processing question', {
+                    error: error.message,
+                    stack: error.stack,
+                    duration,
+                    query,
+                    response: error.response?.data,
+                    status: error.response?.status,
+                });
+        
+                throw new Error(
+                    error.response?.data?.message || 
+                    error.message || 
+                    'Error processing question'
+                );
+            }
+        },
+        
+        clearVectorStore: async () => {
+            const startTime = Date.now();
+            try {
+                logger.info('Starting vector store clearance');
+                
+                const response = await axios.post(`${PYTHON_SERVICE_URL}/clear`);
+                
+                const duration = Date.now() - startTime;
+                logger.info('Vector store cleared successfully', {
+                    duration,
+                    response: response.data
+                });
 
-    askQuestion: async ({ query, k = 5, scoreThreshold = 0.2 }) => {
-        try {
-            console.log(`Processing question: "${query}"`);
-            const response = await axios.post(`${PYTHON_SERVICE_URL}/ask`, {
-                query,
-                k,
-                score_threshold: scoreThreshold
-            });
+                return response.data;
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                logger.error('Error clearing vector store', {
+                    error: error.message,
+                    stack: error.stack,
+                    duration
+                });
 
-            console.log('Question response:', response.data);
-            return response.data;
-        } catch (error) {
-            console.error('Error during question:', error);
-            return {
-                status: 'error',
-                message: error.message || 'Error processing question'
-            };
-        }
-    },
-
-    clearVectorStore: async () => {
-        try {
-            console.log('Clearing vector store...');
-            const response = await axios.post(`${PYTHON_SERVICE_URL}/clear`);
-            console.log('Clear response:', response.data);
-            return response.data;
-        } catch (error) {
-            console.error('Error clearing vector store:', error);
-            return {
-                status: 'error',
-                message: error.message || 'Error clearing vector store'
-            };
+                return {
+                    status: 'error',
+                    message: error.message || 'Error clearing vector store'
+                };
+            }
         }
     }
 };

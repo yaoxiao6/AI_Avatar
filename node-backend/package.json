@@ -2,19 +2,23 @@
     "name": "rag-graphql-backend",
     "version": "1.0.0",
     "description": "GraphQL backend for RAG system",
-    "main": "src/index.js",
+    "main": "index.js",
     "scripts": {
-        "start": "node src/index.js",
-        "dev": "nodemon src/index.js"
+      "start": "node src/index.js",
+      "dev": "nodemon src/index.js"
     },
     "dependencies": {
-        "axios": "^1.6.7",
-        "express": "^4.18.2",
-        "graphql": "^16.8.1",
-        "graphql-http": "^1.22.4",
-        "multer": "^1.4.5-lts.1"
+      "axios": "^1.6.7",
+      "express": "^4.18.2",
+      "graphql": "^16.8.1",
+      "graphql-yoga": "^5.1.1",
+      "graphql-http": "^1.22.0",
+      "multer": "^1.4.5-lts.1",
+      "form-data": "^4.0.0",
+      "winston": "^3.17.0",
+      "morgan": "^1.10.0"
     },
     "devDependencies": {
-        "nodemon": "^3.0.3"
+      "nodemon": "^3.0.3"
     }
-}
+  }
