@@ -13,11 +13,22 @@ ollama list
 ```
 
 Step 2: Launch Flask for RAG
+Go to `AI_Avatar/python-rag`
 ```bash
-
+python app.py
 ```
+It runs on port `5001`
 
 Step 3: Launch Node Backend 
+Go to `AI_Avatar/node-backend`
 ```bash
-
+npm run dev
 ```
+It runs on port `4000`
+
+Step 4: Launch Quasar Frontend
+Go to `AI_Avatar/quasar-frontend/AI-Avatar-Frontend`
+```bash
+quasar dev
+```
+It runs on port `9000`
