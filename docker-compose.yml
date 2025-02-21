@@ -1,0 +1,53 @@
+# AI_Avatar/docker-compose.yml
+
+version: '3.8'
+
+services:
+  ollama-server:
+    build:
+      context: ./ollama-server
+      dockerfile: dockerfile
+    image: ai-avatar/ollama-server:latest
+    ports:
+      - "11434:11434"  # Default Ollama port
+    networks:
+      - ai-network
+    volumes:
+      - ollama-data:/root/.ollama  # Persist Ollama models
+    
+  flask-rag:
+    build:
+      context: ./flask-rag
+      dockerfile: dockerfile
+    image: ai-avatar/flask-rag:latest
+    ports:
+      - "5001:5001"
+    networks:
+      - ai-network
+    environment:
+      - OLLAMA_HOST=ollama-server
+      - OLLAMA_PORT=11434
+    depends_on:
+      - ollama-server
+      
+  node-backend:
+    build:
+      context: ./node-backend
+      dockerfile: dockerfile
+    image: ai-avatar/node-backend:latest
+    ports:
+      - "4000:4000"
+    networks:
+      - ai-network
+    environment:
+      - FLASK_RAG_HOST=flask-rag
+      - FLASK_RAG_PORT=5001
+    depends_on:
+      - flask-rag
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  ollama-data:

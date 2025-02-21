@@ -10,6 +10,7 @@ from langchain_community.vectorstores.utils import filter_complex_metadata
 from langchain_core.prompts import ChatPromptTemplate
 import logging
 import chromadb
+import os
 
 set_debug(True)
 set_verbose(True)
@@ -17,31 +18,35 @@ set_verbose(True)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Get Ollama host and port from environment variables
+OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'ollama-server')  # defaults to 'ollama-server' if not set
+OLLAMA_PORT = os.getenv('OLLAMA_PORT', '11434')  # defaults to '11434' if not set
+OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+
 class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""
 
     def __init__(self, llm_model: str = "deepseek-r1:1.5B", embedding_model: str = "mxbai-embed-large"):
-        try:
-            self.embeddings = OllamaEmbeddings(model=embedding_model)
-            # Test the embeddings with a simple string
-            test_embedding = self.embeddings.embed_query("test")
-            logger.info("Embedding model initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize embedding model: {str(e)}")
-            raise
+        # try:
+        #     self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
+        #     # Test the embeddings with a simple string
+        #     # test_embedding = self.embeddings.embed_query("test")
+        #     logger.info("Embedding model initialized successfully")
+        # except Exception as e:
+        #     logger.error(f"Failed to initialize embedding model: {str(e)}")
+        #     raise
 
         # embeddings = OllamaEmbeddings(model="mxbai-embed-large")
         # try:
         #     test_embedding = embeddings.embed_query("test")
-        #     print("Embedding successful!")
-        #     print(f"Embedding dimension: {len(test_embedding)}")
+        #     logger.info("Embedding successful!")
+        #     logger.info(f"Embedding dimension: {len(test_embedding)}")
         # except Exception as e:
-        #     print(f"Embedding failed: {str(e)}")
-
-
+        #     logger.error(f"Failed to embed query: {str(e)}")
+        #     raise
         
-        self.model = ChatOllama(model=llm_model)
-        # self.embeddings = OllamaEmbeddings(model=embedding_model)
+        self.model = ChatOllama(model=llm_model, base_url=OLLAMA_BASE_URL)
+        self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
         self.prompt = ChatPromptTemplate.from_template(
             """

@@ -12,6 +12,27 @@ const resolvers = {
         health: () => {
             logger.info('Health check endpoint called');
             return 'OK';
+        },
+        pythonServiceHealth: async () => {
+            try {
+                logger.info(`Checking Python service health at ${PYTHON_SERVICE_URL}`);
+                const response = await axios.get(`${PYTHON_SERVICE_URL}`);
+                
+                if (response.data.status === 'healthy') {
+                    logger.info('Python service health check successful');
+                    return { status: 'healthy' };
+                } else {
+                    logger.warn('Python service returned unexpected status', response.data);
+                    return { status: 'unhealthy' };
+                }
+            } catch (error) {
+                logger.error('Python service health check failed:', {
+                    error: error.message,
+                    url: PYTHON_SERVICE_URL,
+                    config: error.config
+                });
+                return { status: 'unhealthy' };
+            }
         }
     },
     

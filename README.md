@@ -1,5 +1,6 @@
 # AI_Avatar
 
+## Local testing 
 Step 1: Launch ollama
 ```bash
 ollama serve
@@ -13,7 +14,7 @@ ollama list
 ```
 
 Step 2: Launch Flask for RAG
-Go to `AI_Avatar/python-rag`
+Go to `AI_Avatar/flask-rag`
 ```bash
 python app.py
 ```
@@ -32,3 +33,15 @@ Go to `AI_Avatar/quasar-frontend/AI-Avatar-Frontend`
 quasar dev
 ```
 It runs on port `9000`
+
+## Docker Testing 
+
+Build image / Rebuild image and Launch the container: 
+```
+docker-compose up --build
+```
+
+Turn down the container and remove all image:
+```
+docker-compose down --rmi all
+```

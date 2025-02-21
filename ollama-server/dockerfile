@@ -1,0 +1,45 @@
+# AI_Avatar/ollama-server/Dockerfile
+FROM ollama/ollama:latest
+
+# Install curl for healthchecks
+RUN apt-get update && apt-get install -y curl
+
+# Create startup script with fixed model pulling
+COPY <<EOF /usr/local/bin/start.sh
+#!/bin/bash
+
+# Start Ollama server in the background
+ollama serve &
+
+# Wait for Ollama to be ready
+until curl -s localhost:11434/api/tags > /dev/null 2>&1; do
+    echo "Waiting for Ollama server to be ready..."
+    sleep 2
+done
+
+echo "Ollama server is ready. Pulling models..."
+
+# Pull models one by one with proper quoting
+echo "Pulling mxbai-embed-large:latest..."
+if ! ollama pull mxbai-embed-large:latest; then
+    echo "Failed to pull mxbai-embed-large:latest"
+    exit 1
+fi
+
+echo "Pulling deepseek-r1:1.5b..."
+if ! ollama pull deepseek-r1:1.5b; then
+    echo "Failed to pull deepseek-r1:1.5b"
+    exit 1
+fi
+
+ollama list
+
+# Keep container running
+wait
+EOF
+
+RUN chmod +x /usr/local/bin/start.sh
+
+EXPOSE 11434
+
+ENTRYPOINT ["/usr/local/bin/start.sh"]

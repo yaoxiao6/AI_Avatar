@@ -4,6 +4,11 @@ const resolvers = require('./resolvers');
 const typeDefs = `
   type Query {
     health: String
+    pythonServiceHealth: PythonHealthResponse!
+  }
+
+  type PythonHealthResponse {
+    status: String!
   }
 
   type Mutation {
