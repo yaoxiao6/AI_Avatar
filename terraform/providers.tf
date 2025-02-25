@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "gcs" {
-    bucket = "your-terraform-state-bucket"
+    bucket = "yao-terraform-state-bucket"
     prefix = "terraform/state"
   }
 }

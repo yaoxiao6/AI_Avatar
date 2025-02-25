@@ -6,3 +6,8 @@ package-lock.json
 **/logs
 **.log
 
+# Terraform and GitHub Actions 
+**/.terraform/**
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
