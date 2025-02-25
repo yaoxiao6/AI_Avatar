@@ -1,5 +1,6 @@
 # main.tf
-# Cloud Run service for Flask RAG
+
+# Update the flask-rag service
 resource "google_cloud_run_service" "flask_rag" {
   name     = "flask-rag"
   location = var.region
@@ -8,6 +9,12 @@ resource "google_cloud_run_service" "flask_rag" {
     spec {
       containers {
         image = "gcr.io/${var.project_id}/flask-rag:latest"
+        
+        # Define the port
+        ports {
+          container_port = 8080
+        }
+        
         resources {
           limits = {
             cpu    = "1000m"
@@ -15,19 +22,64 @@ resource "google_cloud_run_service" "flask_rag" {
           }
         }
         
-        # Add startup probe with extended timeout (15 minutes = 900 seconds)
+        # Add startup probe with extended timeout
         startup_probe {
           http_get {
             path = "/"
+            port = 8080
           }
           initial_delay_seconds = 0
-          timeout_seconds = 240  # Max allowed per probe
-          period_seconds = 240   # Time between probes
-          failure_threshold = 4  # 4 * 240 = 960 seconds (16 minutes) total timeout
+          timeout_seconds = 240
+          period_seconds = 240
+          failure_threshold = 4
         }
       }
       
-      # Set the container timeout to 15 minutes
+      timeout_seconds = 900
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+
+# Update the ollama service
+resource "google_cloud_run_service" "ollama" {
+  name     = "ollama"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/ollama:latest"
+        
+        # Define the port
+        ports {
+          container_port = 8080
+        }
+        
+        resources {
+          limits = {
+            cpu    = "2000m"
+            memory = "4Gi"
+          }
+        }
+        
+        # Add startup probe with extended timeout
+        startup_probe {
+          http_get {
+            path = "/"
+            port = 8080
+          }
+          initial_delay_seconds = 0
+          timeout_seconds = 240
+          period_seconds = 240
+          failure_threshold = 4
+        }
+      }
+      
       timeout_seconds = 900
     }
   }
@@ -54,45 +106,6 @@ resource "google_cloud_run_service" "node_backend" {
           }
         }
       }
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-}
-
-# Cloud Run service for Ollama (might need more resources)
-resource "google_cloud_run_service" "ollama" {
-  name     = "ollama"
-  location = var.region
-
-  template {
-    spec {
-      containers {
-        image = "gcr.io/${var.project_id}/ollama:latest"
-        resources {
-          limits = {
-            cpu    = "2000m"
-            memory = "4Gi"
-          }
-        }
-        
-        # Add startup probe with extended timeout (15 minutes = 900 seconds)
-        startup_probe {
-          http_get {
-            path = "/"
-          }
-          initial_delay_seconds = 0
-          timeout_seconds = 240  # Max allowed per probe
-          period_seconds = 240   # Time between probes
-          failure_threshold = 4  # 4 * 240 = 960 seconds (16 minutes) total timeout
-        }
-      }
-      
-      # Set the container timeout to 15 minutes
-      timeout_seconds = 900
     }
   }
 
