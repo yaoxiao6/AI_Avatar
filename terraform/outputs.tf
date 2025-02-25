@@ -12,5 +12,5 @@ output "ollama_url" {
 }
 
 output "frontend_url" {
-  value = google_firebase_hosting_site.default.default_url
+  value = "https://${var.project_id}.appspot.com"
 }

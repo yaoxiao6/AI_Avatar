@@ -27,12 +27,52 @@ jobs:
         run: |
           cd quasar-frontend
           npm run build
+      
+      - name: Create server.js for App Engine
+        run: |
+          cd quasar-frontend/dist
+          cat > server.js << 'EOL'
+          const express = require('express');
+          const path = require('path');
+          const app = express();
           
-      - name: Deploy to Firebase
-        uses: FirebaseExtended/action-hosting-deploy@v0
+          app.use(express.static(path.join(__dirname, 'spa')));
+          
+          app.get('*', (req, res) => {
+            res.sendFile(path.join(__dirname, 'spa', 'index.html'));
+          });
+          
+          const PORT = process.env.PORT || 8080;
+          app.listen(PORT, () => {
+            console.log(`Server listening on port ${PORT}`);
+          });
+          EOL
+          
+          # Install express for the server
+          npm init -y
+          npm install express
+          
+      - name: Auth GCP
+        uses: google-github-actions/auth@v0
         with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: ${{ secrets.GCP_PROJECT_ID }}
-          channelId: live
-
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v0
+      
+      - name: Prepare app.yaml
+        run: |
+          cd quasar-frontend/dist
+          cat > app.yaml << 'EOL'
+          runtime: nodejs14
+          
+          handlers:
+          - url: /.*
+            secure: always
+            script: auto
+          EOL
+      
+      - name: Deploy to App Engine
+        run: |
+          cd quasar-frontend/dist
+          gcloud app deploy --quiet
