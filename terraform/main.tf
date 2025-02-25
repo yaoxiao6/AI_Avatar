@@ -14,7 +14,21 @@ resource "google_cloud_run_service" "flask_rag" {
             memory = "512Mi"
           }
         }
+        
+        # Add startup probe with extended timeout (15 minutes = 900 seconds)
+        startup_probe {
+          http_get {
+            path = "/"
+          }
+          initial_delay_seconds = 0
+          timeout_seconds = 240  # Max allowed per probe
+          period_seconds = 240   # Time between probes
+          failure_threshold = 4  # 4 * 240 = 960 seconds (16 minutes) total timeout
+        }
       }
+      
+      # Set the container timeout to 15 minutes
+      timeout_seconds = 900
     }
   }
 
@@ -64,7 +78,21 @@ resource "google_cloud_run_service" "ollama" {
             memory = "4Gi"
           }
         }
+        
+        # Add startup probe with extended timeout (15 minutes = 900 seconds)
+        startup_probe {
+          http_get {
+            path = "/"
+          }
+          initial_delay_seconds = 0
+          timeout_seconds = 240  # Max allowed per probe
+          period_seconds = 240   # Time between probes
+          failure_threshold = 4  # 4 * 240 = 960 seconds (16 minutes) total timeout
+        }
       }
+      
+      # Set the container timeout to 15 minutes
+      timeout_seconds = 900
     }
   }
 
@@ -74,22 +102,24 @@ resource "google_cloud_run_service" "ollama" {
   }
 }
 
-# App Engine application for frontend
-resource "google_app_engine_application" "app" {
-  project     = var.project_id
-  location_id = var.region
-}
+# App Engine application
+# We'll keep this commented out since it already exists
+# and we'll remove it from state using the script
+# resource "google_app_engine_application" "app" {
+#   project     = var.project_id
+#   location_id = var.region
+# }
 
-# Cloud DNS zone
+# Cloud DNS zone with corrected domain format
 resource "google_dns_managed_zone" "default" {
   name        = "yaoxiao-zone"
-  dns_name    = "${var.domain}."
+  dns_name    = "yaoxiao.org."  # Correct format with single dot
   description = "DNS zone for yaoxiao.org."
 }
 
 # DNS records for App Engine
 resource "google_dns_record_set" "frontend" {
-  name         = var.domain
+  name         = "yaoxiao.org."  # Make sure this matches the dns_name format
   managed_zone = google_dns_managed_zone.default.name
   type         = "A"
   ttl          = 300

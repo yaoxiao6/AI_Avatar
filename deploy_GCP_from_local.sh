@@ -1,5 +1,5 @@
 #!/bin/bash
-# Deployment script for local Terraform execution
+# Complete deployment script using taint approach
 
 set -e  # Exit on any error
 
@@ -20,27 +20,27 @@ gcloud auth print-identity-token > /dev/null 2>&1 || {
 echo "Configuring Docker for GCR..."
 gcloud auth configure-docker
 
-# Step 3: Build and push Docker images
+# Step 3: Build and push Docker images with correct platform
 echo "Building and pushing Docker images..."
 
 # Flask RAG service
 echo "Building Flask RAG service..."
 cd flask-rag
-docker build -t gcr.io/$PROJECT_ID/flask-rag:latest .
+docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/flask-rag:latest .
 docker push gcr.io/$PROJECT_ID/flask-rag:latest
 cd ..
 
 # Node Backend service
 echo "Building Node Backend service..."
 cd node-backend
-docker build -t gcr.io/$PROJECT_ID/node-backend:latest .
+docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/node-backend:latest .
 docker push gcr.io/$PROJECT_ID/node-backend:latest
 cd ..
 
 # Ollama service
 echo "Building Ollama service..."
 cd ollama-server
-docker build -t gcr.io/$PROJECT_ID/ollama:latest .
+docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
 docker push gcr.io/$PROJECT_ID/ollama:latest
 cd ..
 
@@ -74,7 +74,7 @@ EOL
 npm init -y
 npm install express
 
-# Create app.yaml
+# Create app.yaml with up-to-date Node.js runtime
 cat > app.yaml << 'EOL'
 runtime: nodejs20
 
@@ -89,11 +89,30 @@ echo "Deploying frontend to App Engine..."
 gcloud app deploy --quiet
 cd ../../
 
-# Step 7: Run Terraform
-echo "Running Terraform to deploy backend services..."
+# Step 7: Terraform operations
+echo "Running Terraform operations..."
 cd terraform
+
+# Initialize Terraform
+echo "Initializing Terraform..."
 terraform init
+
+# Handle the App Engine application in state
+echo "Handling App Engine application in state..."
+terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app
+
+# Taint Cloud Run services to force recreation
+echo "Tainting Cloud Run services..."
+terraform taint google_cloud_run_service.flask_rag || true
+terraform taint google_cloud_run_service.node_backend || true
+terraform taint google_cloud_run_service.ollama || true
+
+# Run plan to see what will be changed
+echo "Planning changes..."
 terraform plan
+
+# Apply the changes
+echo "Applying changes..."
 terraform apply -auto-approve
 
 echo "✅ Deployment completed!"
