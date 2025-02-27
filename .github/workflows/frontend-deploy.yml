@@ -20,8 +20,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      with:
-        submodules: true # Ensure submodules are checked out
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
@@ -66,7 +64,7 @@ jobs:
         npm init -y
         npm install express
         
-        # Create app.yaml
+        # Create app.yaml with explicit max_instances setting
         cat > app.yaml << 'EOL'
         runtime: nodejs20
 
@@ -74,6 +72,9 @@ jobs:
         - url: /.*
           secure: always
           script: auto
+          
+        automatic_scaling:
+          max_instances: 20
         EOL
 
     - name: Set up Cloud SDK
@@ -85,9 +86,12 @@ jobs:
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Enable App Engine Admin API
+      run: |
+        gcloud services enable appengine.googleapis.com
 
     - name: Deploy to App Engine
       run: |
         cd quasar-frontend/dist
         gcloud app deploy --quiet
-
