@@ -1,4 +1,3 @@
-# .github/workflows/frontend-deploy.yml
 name: Deploy Frontend
 
 on:
@@ -6,73 +5,87 @@ on:
     branches: [ main ]
     paths:
       - 'quasar-frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PROJECT_ID: ai-avatar-451519
+  REGION: us-east1
 
 jobs:
-  build-and-deploy:
+  deploy-frontend:
+    name: Build and Deploy Frontend
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
-        with:
-          node-version: '18'
-          
-      - name: Install Dependencies
-        run: |
-          cd quasar-frontend
-          npm install
-          
-      - name: Build
-        run: |
-          cd quasar-frontend
-          npm run build
-      
-      - name: Create server.js for App Engine
-        run: |
-          cd quasar-frontend/dist
-          cat > server.js << 'EOL'
-          const express = require('express');
-          const path = require('path');
-          const app = express();
-          
-          app.use(express.static(path.join(__dirname, 'spa')));
-          
-          app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, 'spa', 'index.html'));
-          });
-          
-          const PORT = process.env.PORT || 8080;
-          app.listen(PORT, () => {
-            console.log(`Server listening on port ${PORT}`);
-          });
-          EOL
-          
-          # Install express for the server
-          npm init -y
-          npm install express
-          
-      - name: Auth GCP
-        uses: google-github-actions/auth@v0
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
-      
-      - name: Prepare app.yaml
-        run: |
-          cd quasar-frontend/dist
-          cat > app.yaml << 'EOL'
-          runtime: nodejs14
-          
-          handlers:
-          - url: /.*
-            secure: always
-            script: auto
-          EOL
-      
-      - name: Deploy to App Engine
-        run: |
-          cd quasar-frontend/dist
-          gcloud app deploy --quiet
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'quasar-frontend/package-lock.json'
+
+    - name: Install dependencies
+      run: |
+        cd quasar-frontend
+        npm install
+
+    - name: Build frontend
+      run: |
+        cd quasar-frontend
+        npm run build
+
+    - name: Prepare for App Engine deployment
+      run: |
+        cd quasar-frontend/dist
+        
+        # Create server.js for App Engine
+        cat > server.js << 'EOL'
+        const express = require('express');
+        const path = require('path');
+        const app = express();
+
+        app.use(express.static(path.join(__dirname, 'spa')));
+
+        app.get('*', (req, res) => {
+          res.sendFile(path.join(__dirname, 'spa', 'index.html'));
+        });
+
+        const PORT = process.env.PORT || 8080;
+        app.listen(PORT, () => {
+          console.log(`Server listening on port ${PORT}`);
+        });
+        EOL
+        
+        # Initialize npm and install express
+        npm init -y
+        npm install express
+        
+        # Create app.yaml
+        cat > app.yaml << 'EOL'
+        runtime: nodejs20
+
+        handlers:
+        - url: /.*
+          secure: always
+          script: auto
+        EOL
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Deploy to App Engine
+      run: |
+        cd quasar-frontend/dist
+        gcloud app deploy --quiet
+

@@ -1,4 +1,5 @@
-# outputs.tf
+# AI_Avatar/terraform/outputs.tf
+
 output "flask_rag_url" {
   value = google_cloud_run_service.flask_rag.status[0].url
 }

@@ -1,39 +1,4 @@
-# main.tf
-
-# flask-rag service without startup_probe
-resource "google_cloud_run_service" "flask_rag" {
-  name     = "flask-rag"
-  location = var.region
-
-  template {
-    spec {
-      containers {
-        image = "gcr.io/${var.project_id}/flask-rag:latest"
-
-        # Define the port
-        ports {
-          container_port = 8080
-        }
-
-        resources {
-          limits = {
-            cpu    = "1000m"
-            memory = "512Mi"
-          }
-        }
-
-        # startup_probe removed
-      }
-
-      timeout_seconds = 900
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-}
+# AI_Avatar/terraform/main.tf
 
 # ollama service without startup_probe
 resource "google_cloud_run_service" "ollama" {
@@ -70,6 +35,46 @@ resource "google_cloud_run_service" "ollama" {
   }
 }
 
+# flask-rag service without startup_probe
+resource "google_cloud_run_service" "flask_rag" {
+  name     = "flask-rag"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/flask-rag:latest"
+
+        # Define the port
+        ports {
+          container_port = 8080
+        }
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+
+        env {
+          name  = "OLLAMA_BASE_URL"
+          value = google_cloud_run_service.ollama.status[0].url
+        }
+
+        # startup_probe removed
+      }
+
+      timeout_seconds = 900
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
+}
+
 # Cloud Run service for Node.js backend
 resource "google_cloud_run_service" "node_backend" {
   name     = "node-backend"
@@ -84,6 +89,10 @@ resource "google_cloud_run_service" "node_backend" {
             cpu    = "1000m"
             memory = "512Mi"
           }
+        }
+        env {
+          name  = "FLASK_RAG_URL"
+          value = google_cloud_run_service.flask_rag.status[0].url
         }
       }
     }

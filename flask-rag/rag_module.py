@@ -1,4 +1,4 @@
-# rag_module.py
+# AI_Avatar/flask-rag/rag_module.py
 from langchain_core.globals import set_verbose, set_debug
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain.schema.output_parser import StrOutputParser
@@ -19,9 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Get Ollama host and port from environment variables
-OLLAMA_HOST = os.getenv('OLLAMA_HOST', 'ollama-server')  # defaults to 'ollama-server' if not set
-OLLAMA_PORT = os.getenv('OLLAMA_PORT', '11434')  # defaults to '11434' if not set
-OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', f"http://ollama-server:11434")  # defaults to 'http://ollama-server:11434' if not set
 
 class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""

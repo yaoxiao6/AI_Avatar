@@ -1,4 +1,3 @@
-# .github/workflows/backend-deploy.yml
 name: Deploy Backend Services
 
 on:
@@ -9,63 +8,82 @@ on:
       - 'node-backend/**'
       - 'ollama-server/**'
       - 'terraform/**'
+      - '.github/workflows/backend-deploy.yml'
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PROJECT_ID: ai-avatar-451519
+  REGION: us-east1
 
 jobs:
-  terraform:
+  deploy-backend:
+    name: Build and Deploy Backend Services
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v1
-        
-      - name: Auth GCP
-        uses: google-github-actions/auth@v0
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
-        
-      - name: Terraform Init
-        run: |
-          cd terraform
-          terraform init
-          
-      - name: Terraform Plan
-        run: |
-          cd terraform
-          terraform plan
-          
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: |
-          cd terraform
-          terraform apply -auto-approve
 
-  build-and-push:
-    needs: terraform
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [flask-rag, node-backend, ollama-server]
     steps:
-      - uses: actions/checkout@v2
-      
-      - name: Auth GCP
-        uses: google-github-actions/auth@v0
-        with:
-          credentials_json: '${{ secrets.GCP_SA_KEY }}'
-          
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+        install_components: 'gke-gcloud-auth-plugin'
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
         
-      - name: Configure Docker
-        run: gcloud auth configure-docker
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+    - name: Build and Push Flask RAG Docker Image
+      run: |
+        cd flask-rag
+        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/flask-rag:latest .
+        docker push gcr.io/$PROJECT_ID/flask-rag:latest
+        cd ..
+
+    - name: Build and Push Node Backend Docker Image
+      run: |
+        cd node-backend
+        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/node-backend:latest .
+        docker push gcr.io/$PROJECT_ID/node-backend:latest
+        cd ..
+
+    - name: Build and Push Ollama Docker Image
+      run: |
+        cd ollama-server
+        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
+        docker push gcr.io/$PROJECT_ID/ollama:latest
+        cd ..
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
+
+    - name: Initialize Terraform
+      run: |
+        cd terraform
+        terraform init
+
+    - name: Terraform Plan
+      run: |
+        cd terraform
+        terraform plan -no-color
+
+    - name: Terraform Apply
+      run: |
+        cd terraform
+        # Handle App Engine application in state
+        terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app || true
         
-      - name: Build and Push
-        run: |
-          cd ${{ matrix.service }}
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ matrix.service }}:${{ github.sha }} .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/${{ matrix.service }}:${{ github.sha }}
+        # Taint Cloud Run services to force recreation
+        terraform taint google_cloud_run_service.flask_rag || true
+        terraform taint google_cloud_run_service.node_backend || true
+        terraform taint google_cloud_run_service.ollama || true
+        
+        terraform apply -auto-approve
 

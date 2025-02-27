@@ -45,3 +45,7 @@ Turn down the container and remove all image:
 ```
 docker-compose down --rmi all
 ```
+
+## Deploy / Re-deploy to GCP from local terminal 
+1. Turn on the Docker software
+2. `sh ./deploy_GCP_from_local.sh`
