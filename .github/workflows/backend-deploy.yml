@@ -34,31 +34,9 @@ jobs:
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-        # Add service account impersonation if you're using workload identity federation
-        # service_account: your-terraform-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
         
     - name: Configure Docker for GCR
       run: gcloud auth configure-docker
-
-    # Try setting additional IAM permissions before Terraform runs
-    - name: Set necessary permissions
-      run: |
-        # Get the service account email from the JSON key
-        SA_EMAIL=$(echo '${{ secrets.GCP_SA_KEY }}' | jq -r '.client_email')
-        echo "Using service account: $SA_EMAIL"
-        
-        # Grant Cloud Run Admin role to ensure it has all necessary permissions
-        gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
-          --member="serviceAccount:$SA_EMAIL" \
-          --role="roles/run.admin"
-        
-        # Also add IAM admin permissions to manage IAM policies
-        gcloud projects add-iam-policy-binding ${{ env.PROJECT_ID }} \
-          --member="serviceAccount:$SA_EMAIL" \
-          --role="roles/resourcemanager.projectIamAdmin"
-          
-        # Wait a moment for permissions to propagate
-        sleep 10
 
     - name: Build and Push Flask RAG Docker Image
       run: |
