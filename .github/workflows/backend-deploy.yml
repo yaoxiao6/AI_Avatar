@@ -1,3 +1,5 @@
+# .github/workflows/backend-deploy.yml
+
 name: Deploy Backend Services
 
 on:
@@ -8,6 +10,8 @@ on:
       - 'node-backend/**'
       - 'ollama-server/**'
       - 'terraform/**'
+      - 'event-driven-functions/**'
+      - 'scripts/**'
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:  # Allow manual triggers
 
@@ -59,6 +63,13 @@ jobs:
         docker push gcr.io/$PROJECT_ID/ollama:latest
         cd ..
 
+    - name: Prepare and Upload Function Source
+      run: |
+        # Make script executable
+        chmod +x scripts/prepare_function.sh
+        # Run script to prepare and upload function source
+        ./scripts/prepare_function.sh ${{ env.PROJECT_ID }} ${{ env.REGION }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
       with:
@@ -72,7 +83,7 @@ jobs:
     - name: Terraform Plan
       run: |
         cd terraform
-        terraform plan -var-file=environments/dev.tfvars -no-color -target=module.ollama -target=module.flask_rag -target=module.node_backend -target=module.networking
+        terraform plan -no-color
 
     - name: Terraform Apply
       run: |
@@ -81,8 +92,8 @@ jobs:
         terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app || true
         
         # Taint Cloud Run services to force recreation
-        terraform state list | grep -q "module.ollama.google_cloud_run_service.ollama" && terraform taint module.ollama.google_cloud_run_service.ollama || true
-        terraform state list | grep -q "module.flask_rag.google_cloud_run_service.flask_rag" && terraform taint module.flask_rag.google_cloud_run_service.flask_rag || true
-        terraform state list | grep -q "module.node_backend.google_cloud_run_service.node_backend" && terraform taint module.node_backend.google_cloud_run_service.node_backend || true
+        terraform taint google_cloud_run_service.flask_rag || true
+        terraform taint google_cloud_run_service.node_backend || true
+        terraform taint google_cloud_run_service.ollama || true
         
-        terraform apply -var-file=environments/dev.tfvars -auto-approve -target=module.ollama -target=module.flask_rag -target=module.node_backend -target=module.networking
+        terraform apply -auto-approve

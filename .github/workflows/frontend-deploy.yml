@@ -1,3 +1,5 @@
+# .github/workflows/frontend-deploy.yml
+
 name: Deploy Frontend
 
 on:
@@ -96,18 +98,3 @@ jobs:
         cd quasar-frontend/dist
         gcloud app deploy --quiet
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.0
-
-    - name: Taint and Recreate App Engine for Frontend
-      run: |
-        cd terraform
-        
-        # First check if App Engine application exists in state and remove it
-        terraform state list | grep -q "module.frontend.google_app_engine_application.app" && terraform state rm module.frontend.google_app_engine_application.app || true
-        
-        # Now apply only targeting the frontend module
-        terraform init
-        terraform apply -var-file=environments/dev.tfvars -auto-approve -target=module.frontend

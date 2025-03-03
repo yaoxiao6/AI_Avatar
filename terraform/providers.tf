@@ -1,5 +1,4 @@
 # AI_Avatar/terraform/providers.tf
-
 terraform {
   required_providers {
     google = {

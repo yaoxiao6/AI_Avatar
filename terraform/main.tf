@@ -1,53 +1,155 @@
 # AI_Avatar/terraform/main.tf
 
-# Module for Ollama service
-module "ollama" {
-  source     = "./modules/ollama"
-  project_id = var.project_id
-  region     = var.region
+# ollama service without startup_probe
+resource "google_cloud_run_service" "ollama" {
+  name     = "ollama"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/ollama:latest"
+
+        # Define the port
+        ports {
+          container_port = 8080
+        }
+
+        resources {
+          limits = {
+            cpu    = "2000m"
+            memory = "4Gi"
+          }
+        }
+
+        # startup_probe removed
+      }
+
+      timeout_seconds = 900
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
 }
 
-# Module for Flask RAG service
-module "flask_rag" {
-  source       = "./modules/flask-rag"
-  project_id   = var.project_id
-  region       = var.region
-  ollama_url   = module.ollama.url
-  depends_on   = [module.ollama]
+# flask-rag service without startup_probe
+resource "google_cloud_run_service" "flask_rag" {
+  name     = "flask-rag"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/flask-rag:latest"
+
+        # Define the port
+        ports {
+          container_port = 8080
+        }
+
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+
+        env {
+          name  = "OLLAMA_BASE_URL"
+          value = google_cloud_run_service.ollama.status[0].url
+        }
+
+        # startup_probe removed
+      }
+
+      timeout_seconds = 900
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
 }
 
-# Module for Node.js backend
-module "node_backend" {
-  source       = "./modules/node-backend"
-  project_id   = var.project_id
-  region       = var.region
-  flask_rag_url = module.flask_rag.url
-  depends_on   = [module.flask_rag]
+# Cloud Run service for Node.js backend
+resource "google_cloud_run_service" "node_backend" {
+  name     = "node-backend"
+  location = var.region
+
+  template {
+    spec {
+      containers {
+        image = "gcr.io/${var.project_id}/node-backend:latest"
+        resources {
+          limits = {
+            cpu    = "1000m"
+            memory = "512Mi"
+          }
+        }
+        env {
+          name  = "FLASK_RAG_URL"
+          value = google_cloud_run_service.flask_rag.status[0].url
+        }
+      }
+    }
+  }
+
+  traffic {
+    percent         = 100
+    latest_revision = true
+  }
 }
 
-# Module for frontend (App Engine)
-module "frontend" {
-  source     = "./modules/frontend"
-  project_id = var.project_id
-  region     = var.region
+# Cloud DNS zone with corrected domain format
+resource "google_dns_managed_zone" "default" {
+  name        = "yaoxiao-zone"
+  dns_name    = "yaoxiao.org." # Correct format with single dot
+  description = "DNS zone for yaoxiao.org."
 }
 
-# Module for networking (DNS and IAM)
-module "networking" {
-  source            = "./modules/networking"
-  project_id        = var.project_id
-  domain            = var.domain
-  ollama_service    = module.ollama.service
-  flask_rag_service = module.flask_rag.service
-  node_backend_service = module.node_backend.service
-  depends_on        = [module.ollama, module.flask_rag, module.node_backend]
+# DNS records for App Engine
+resource "google_dns_record_set" "frontend" {
+  name         = "yaoxiao.org." # Make sure this matches the dns_name format
+  managed_zone = google_dns_managed_zone.default.name
+  type         = "A"
+  ttl          = 300
+  rrdatas      = ["216.239.32.21", "216.239.34.21", "216.239.36.21", "216.239.38.21"] # Google's App Engine IP addresses
 }
 
-# Module for event-driven functions
-module "functions" {
-  source         = "./modules/functions"
-  project_id     = var.project_id
-  region         = var.region
-  flask_rag_url  = module.flask_rag.url
-  depends_on     = [module.flask_rag]
+# IAM policy to make services public
+data "google_iam_policy" "noauth" {
+  binding {
+    role = "roles/run.invoker"
+    members = [
+      "allUsers",
+    ]
+  }
+}
+
+# Allow public access to Flask RAG
+resource "google_cloud_run_service_iam_policy" "flask_rag_noauth" {
+  location    = google_cloud_run_service.flask_rag.location
+  project     = var.project_id
+  service     = google_cloud_run_service.flask_rag.name
+  policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+# Allow public access to Node Backend
+resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
+  location    = google_cloud_run_service.node_backend.location
+  project     = var.project_id
+  service     = google_cloud_run_service.node_backend.name
+  policy_data = data.google_iam_policy.noauth.policy_data
+}
+
+# Allow public access to Ollama
+resource "google_cloud_run_service_iam_policy" "ollama_noauth" {
+  location    = google_cloud_run_service.ollama.location
+  project     = var.project_id
+  service     = google_cloud_run_service.ollama.name
+  policy_data = data.google_iam_policy.noauth.policy_data
 }
