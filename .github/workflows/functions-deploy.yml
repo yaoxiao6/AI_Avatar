@@ -2,72 +2,78 @@ name: Deploy Cloud Functions
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
     paths:
       - 'event-driven-functions/**'
       - 'terraform/modules/functions/**'
       - '.github/workflows/functions-deploy.yml'
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  PROJECT_ID: ai-avatar-451519
+  REGION: us-east1
 
 jobs:
   deploy-functions:
+    name: Build and Deploy Cloud Functions
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-          cache-dependency-path: 'event-driven-functions/requirements.txt'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+        cache-dependency-path: 'event-driven-functions/requirements.txt'
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+    - name: Validate requirements
+      run: |
+        cd event-driven-functions
+        pip install -r requirements.txt
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ env.PROJECT_ID }}
 
-      # Validate requirements.txt
-      - name: Test pip installation
-        run: |
-          cd event-driven-functions
-          pip install -r requirements.txt
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # Deploy using Terraform instead of gcloud
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.0.0
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.5.0
 
-      - name: Terraform Init
-        working-directory: ./terraform
-        run: terraform init
+    - name: Initialize Terraform
+      run: |
+        cd terraform
+        terraform init
 
-      - name: Terraform Plan
-        working-directory: ./terraform
-        run: terraform plan -var-file=environments/dev.tfvars -target=module.functions
+    - name: Terraform Plan
+      run: |
+        cd terraform
+        terraform plan -var-file=environments/dev.tfvars -no-color -target=module.functions
+
+    - name: Terraform Apply
+      run: |
+        cd terraform
+        # Taint function to force recreation if it exists
+        terraform state list | grep -q "module.functions.google_cloudfunctions2_function.ingest_pdf" && terraform taint module.functions.google_cloudfunctions2_function.ingest_pdf || true
         
-      - name: Terraform Apply
-        working-directory: ./terraform
-        run: terraform apply -var-file=environments/dev.tfvars -target=module.functions -auto-approve
-        
-      # Test the deployed function by uploading a test PDF if available
-      - name: Test function (if test file exists)
-        if: ${{ success() && hashFiles('event-driven-functions/test.pdf') != '' }}
-        run: |
-          # Get the bucket name from terraform output
-          BUCKET_NAME=$(cd terraform && terraform output -raw pdf_upload_bucket)
-          # Upload test PDF to trigger the function
-          gcloud storage cp event-driven-functions/test.pdf gs://${BUCKET_NAME}/pdfs/test-$(date +%s).pdf
-          echo "Test PDF uploaded to trigger the function"
+        terraform apply -var-file=environments/dev.tfvars -auto-approve -target=module.functions
+
+    - name: Test Function (Optional)
+      if: ${{ success() && hashFiles('event-driven-functions/test.pdf') != '' }}
+      run: |
+        # Get the bucket name from terraform output
+        cd terraform
+        PDF_BUCKET=$(terraform output -raw pdf_upload_bucket)
+        # Upload test PDF to trigger the function
+        cd ..
+        gcloud storage cp event-driven-functions/test.pdf gs://${PDF_BUCKET}/pdfs/test-$(date +%s).pdf
+        echo "Test PDF uploaded to trigger the function"
