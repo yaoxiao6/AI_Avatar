@@ -101,8 +101,13 @@ jobs:
       with:
         terraform_version: 1.5.0
 
-    - name: Update Terraform State for Frontend
+    - name: Taint and Recreate App Engine for Frontend
       run: |
         cd terraform
+        
+        # First check if App Engine application exists in state and remove it
+        terraform state list | grep -q "module.frontend.google_app_engine_application.app" && terraform state rm module.frontend.google_app_engine_application.app || true
+        
+        # Now apply only targeting the frontend module
         terraform init
         terraform apply -var-file=environments/dev.tfvars -auto-approve -target=module.frontend
