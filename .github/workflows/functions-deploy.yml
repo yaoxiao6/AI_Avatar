@@ -66,14 +66,3 @@ jobs:
         terraform state list | grep -q "module.functions.google_cloudfunctions2_function.ingest_pdf" && terraform taint module.functions.google_cloudfunctions2_function.ingest_pdf || true
         
         terraform apply -var-file=environments/dev.tfvars -auto-approve -target=module.functions
-
-    - name: Test Function (Optional)
-      if: ${{ success() && hashFiles('event-driven-functions/test.pdf') != '' }}
-      run: |
-        # Get the bucket name from terraform output
-        cd terraform
-        PDF_BUCKET=$(terraform output -raw pdf_upload_bucket)
-        # Upload test PDF to trigger the function
-        cd ..
-        gcloud storage cp event-driven-functions/test.pdf gs://${PDF_BUCKET}/pdfs/test-$(date +%s).pdf
-        echo "Test PDF uploaded to trigger the function"
