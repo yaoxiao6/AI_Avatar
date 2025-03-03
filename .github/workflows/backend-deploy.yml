@@ -2,87 +2,79 @@ name: Deploy Backend Services
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
+      - 'ollama-server/**'
       - 'flask-rag/**'
       - 'node-backend/**'
-      - 'ollama-server/**'
-      - 'terraform/**'
+      - 'docker-compose.yml'
+      - 'terraform/modules/ollama/**'
+      - 'terraform/modules/flask-rag/**'
+      - 'terraform/modules/node-backend/**'
+      - 'terraform/modules/networking/**'
       - '.github/workflows/backend-deploy.yml'
-  workflow_dispatch:  # Allow manual triggers
-
-env:
-  PROJECT_ID: ai-avatar-451519
-  REGION: us-east1
 
 jobs:
-  deploy-backend:
-    name: Build and Deploy Backend Services
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ env.PROJECT_ID }}
-        install_components: 'gke-gcloud-auth-plugin'
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io
+
+      # Build and push Ollama image
+      - name: Build and push Ollama image
+        working-directory: ./ollama-server
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/ollama:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/ollama:latest
+
+      # Build and push Flask RAG image
+      - name: Build and push Flask RAG image
+        working-directory: ./flask-rag
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/flask-rag:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/flask-rag:latest
+
+      # Build and push Node Backend image
+      - name: Build and push Node Backend image
+        working-directory: ./node-backend
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/node-backend:latest .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/node-backend:latest
+
+      # Deploy backend infrastructure using Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -var-file=environments/dev.tfvars -target=module.ollama -target=module.flask_rag -target=module.node_backend -target=module.networking
         
-    - name: Configure Docker for GCR
-      run: gcloud auth configure-docker
-
-    - name: Build and Push Flask RAG Docker Image
-      run: |
-        cd flask-rag
-        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/flask-rag:latest .
-        docker push gcr.io/$PROJECT_ID/flask-rag:latest
-        cd ..
-
-    - name: Build and Push Node Backend Docker Image
-      run: |
-        cd node-backend
-        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/node-backend:latest .
-        docker push gcr.io/$PROJECT_ID/node-backend:latest
-        cd ..
-
-    - name: Build and Push Ollama Docker Image
-      run: |
-        cd ollama-server
-        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
-        docker push gcr.io/$PROJECT_ID/ollama:latest
-        cd ..
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.5.0
-
-    - name: Initialize Terraform
-      run: |
-        cd terraform
-        terraform init
-
-    - name: Terraform Plan
-      run: |
-        cd terraform
-        terraform plan -no-color
-
-    - name: Terraform Apply
-      run: |
-        cd terraform
-        # Handle App Engine application in state
-        terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app || true
-        
-        # Taint Cloud Run services to force recreation
-        terraform taint google_cloud_run_service.flask_rag || true
-        terraform taint google_cloud_run_service.node_backend || true
-        terraform taint google_cloud_run_service.ollama || true
-        
-        terraform apply -auto-approve
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -var-file=environments/dev.tfvars -target=module.ollama -target=module.flask_rag -target=module.node_backend -target=module.networking -auto-approve

@@ -2,96 +2,96 @@ name: Deploy Frontend
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
       - 'quasar-frontend/**'
+      - 'terraform/modules/frontend/**'
       - '.github/workflows/frontend-deploy.yml'
-  workflow_dispatch:  # Allow manual triggers
-
-env:
-  PROJECT_ID: ai-avatar-451519
-  REGION: us-east1
 
 jobs:
-  deploy-frontend:
-    name: Build and Deploy Frontend
+  build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: 'quasar-frontend/package-lock.json'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'quasar-frontend/package-lock.json'
 
-    - name: Install dependencies
-      run: |
-        cd quasar-frontend
-        npm install
+      # Build the Quasar frontend
+      - name: Install dependencies
+        working-directory: ./quasar-frontend
+        run: npm ci
 
-    - name: Build frontend
-      run: |
-        cd quasar-frontend
-        npm run build
+      - name: Build the Quasar app
+        working-directory: ./quasar-frontend
+        run: npm run build
 
-    - name: Prepare for App Engine deployment
-      run: |
-        cd quasar-frontend/dist
+      # Set up Google Cloud for App Engine deployment
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # Create app.yaml in the dist directory if it doesn't exist
+      - name: Create app.yaml
+        working-directory: ./quasar-frontend
+        run: |
+          cat > dist/app.yaml << EOL
+          runtime: nodejs18
+          service: default
+          handlers:
+            - url: /(.*\..+)$
+              static_files: \1
+              upload: (.*\..+)$
+              secure: always
+
+            - url: /.*
+              static_files: index.html
+              upload: index.html
+              secure: always
+          EOL
+
+      # Deploy to App Engine
+      - name: Deploy to App Engine
+        working-directory: ./quasar-frontend/dist
+        run: gcloud app deploy --quiet
+
+      # Update Terraform state for frontend
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -var-file=environments/dev.tfvars -target=module.frontend
         
-        # Create server.js for App Engine
-        cat > server.js << 'EOL'
-        const express = require('express');
-        const path = require('path');
-        const app = express();
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -var-file=environments/dev.tfvars -target=module.frontend -auto-approve
 
-        app.use(express.static(path.join(__dirname, 'spa')));
-
-        app.get('*', (req, res) => {
-          res.sendFile(path.join(__dirname, 'spa', 'index.html'));
-        });
-
-        const PORT = process.env.PORT || 8080;
-        app.listen(PORT, () => {
-          console.log(`Server listening on port ${PORT}`);
-        });
-        EOL
-        
-        # Initialize npm and install express
-        npm init -y
-        npm install express
-        
-        # Create app.yaml with explicit max_instances setting
-        cat > app.yaml << 'EOL'
-        runtime: nodejs20
-
-        handlers:
-        - url: /.*
-          secure: always
-          script: auto
-          
-        automatic_scaling:
-          max_instances: 20
-        EOL
-
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        project_id: ${{ env.PROJECT_ID }}
-
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v1
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        
-    - name: Enable App Engine Admin API
-      run: |
-        gcloud services enable appengine.googleapis.com
-
-    - name: Deploy to App Engine
-      run: |
-        cd quasar-frontend/dist
-        gcloud app deploy --quiet
+      # Optional: Run tests against deployed frontend
+      - name: Verify deployment
+        run: |
+          echo "Verifying frontend deployment at https://${{ secrets.GCP_PROJECT_ID }}.appspot.com"
+          curl -s -o /dev/null -w "%{http_code}" "https://${{ secrets.GCP_PROJECT_ID }}.appspot.com" | grep -q "200" || exit 1

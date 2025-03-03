@@ -1,17 +1,26 @@
 # AI_Avatar/terraform/outputs.tf
 
 output "flask_rag_url" {
-  value = google_cloud_run_service.flask_rag.status[0].url
+  value = module.flask_rag.url
+  description = "URL of the Flask RAG service"
 }
 
 output "node_backend_url" {
-  value = google_cloud_run_service.node_backend.status[0].url
+  value = module.node_backend.url
+  description = "URL of the Node.js backend service"
 }
 
 output "ollama_url" {
-  value = google_cloud_run_service.ollama.status[0].url
+  value = module.ollama.url
+  description = "URL of the Ollama service"
 }
 
 output "frontend_url" {
-  value = "https://${var.project_id}.appspot.com"
+  value = module.frontend.url
+  description = "URL of the frontend application"
+}
+
+output "pdf_upload_bucket" {
+  value = module.functions.pdf_bucket_name
+  description = "Bucket name for PDF uploads to trigger the function"
 }
