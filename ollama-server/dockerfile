@@ -2,9 +2,6 @@
 
 FROM ollama/ollama:latest
 
-# Install curl for healthchecks and Python for the health check server
-RUN apt-get update && apt-get install -y curl python3
-
 # Create startup script with fixed model pulling and proper binding
 COPY <<EOF /usr/local/bin/start.sh
 #!/bin/bash
@@ -38,17 +35,13 @@ fi
 
 ollama list
 
-# Health check endpoint for Cloud Run - use PORT env var provided by Cloud Run
-python3 -m http.server \${PORT:-8080} --bind \$OLLAMA_HOST &
-
-# Keep container running
+# Keep container running - using the Ollama process directly
 wait
 EOF
 
 RUN chmod +x /usr/local/bin/start.sh
 
-# Expose the Ollama API port and the health check port
+# Only expose the Ollama API port
 EXPOSE 11434
-EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/start.sh"]
