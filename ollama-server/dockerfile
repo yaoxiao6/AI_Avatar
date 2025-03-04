@@ -13,7 +13,7 @@ export OLLAMA_HOST=0.0.0.0
 ollama serve &
 
 # Wait for Ollama to be ready
-until curl -s \$OLLAMA_HOST:11434/api/tags > /dev/null 2>&1; do
+until curl -s \$OLLAMA_HOST:11434 > /dev/null 2>&1; do
     echo "Waiting for Ollama server to be ready..."
     sleep 2
 done
@@ -33,6 +33,7 @@ if ! ollama pull deepseek-r1:1.5b; then
     exit 1
 fi
 
+echo "Here are available models:"
 ollama list
 
 # Keep container running - using the Ollama process directly
