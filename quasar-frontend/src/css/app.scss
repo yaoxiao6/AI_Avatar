@@ -1,1 +1,18 @@
 // app global css in SCSS form
+
+// Global styles for the chat application
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  h1, h2, h3, h4 {
+    font-weight: 600;
+  }
+  
+  // Add any additional global styles here

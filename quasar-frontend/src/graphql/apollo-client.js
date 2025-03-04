@@ -1,3 +1,4 @@
+// AI_Avatar/quasar-frontend/src/graphql/apollo-client.js
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client/core'
 
 // Create the http link

@@ -1,4 +1,4 @@
-// src/graphql/queries.js
+// AI_Avatar/quasar-frontend/src/graphql/queries.js
 
 import gql from 'graphql-tag'
 

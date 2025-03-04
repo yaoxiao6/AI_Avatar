@@ -1,3 +1,5 @@
+<!-- AI_Avatar/quasar-frontend/src/pages/ChatPage.vue -->
+
 <template>
   <div class="q-pa-md row justify-center">
     <div class="chat-container" style="width: 100%; max-width: 600px;">
