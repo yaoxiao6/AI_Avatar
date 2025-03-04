@@ -12,10 +12,13 @@ resource "google_storage_bucket" "pdf_storage" {
     max_age_seconds = 3600
   }
 
-  # Create the pdfs/ folder structure
-  provisioner "local-exec" {
-    command = "gsutil cp /dev/null gs://${var.project_id}-storage/pdfs/"
-  }
+#   # Create the pdfs/ folder structure
+#   # Keep showing me error even I give it owner role, which have access to everything!
+#   ServiceException: 401 Anonymous caller does not have storage.objects.create access to the Google Cloud Storage object. Permission 'storage.objects.create' denied on resource (or it may not exist).
+
+#   provisioner "local-exec" {
+#     command = "gsutil cp /dev/null gs://${var.project_id}-storage/pdfs/"
+#   }
 }
 
 # IAM binding for the service account to access the bucket
