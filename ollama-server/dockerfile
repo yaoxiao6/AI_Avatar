@@ -10,7 +10,7 @@ COPY <<EOF /usr/local/bin/start.sh
 export OLLAMA_HOST=0.0.0.0
 
 # Start Ollama server in the background with proper binding
-ollama serve &
+ollama serve --host \$OLLAMA_HOST --port 11434 --no-cache --no-ssl --no-telemetry &
 OLLAMA_PID=$!
 echo "Ollama server started with PID $OLLAMA_PID"
 
