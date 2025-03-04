@@ -10,7 +10,7 @@ COPY <<EOF /usr/local/bin/start.sh
 export OLLAMA_HOST=0.0.0.0
 
 # Start Ollama server in the background with proper binding
-ollama serve --host \$OLLAMA_HOST --port 11434 --no-cache --no-ssl --no-telemetry &
+ollama serve &
 OLLAMA_PID=$!
 echo "Ollama server started with PID $OLLAMA_PID"
 
@@ -18,7 +18,7 @@ echo "Ollama server started with PID $OLLAMA_PID"
 
 # Wait for Ollama to be ready
 # GCP keeps "Waiting for Ollama server to be ready..." forever. 
-until curl -s \$OLLAMA_HOST:11434 > /dev/null 2>&1; do
+until curl -s localhost:11434 > /dev/null 2>&1; do
     echo "Waiting for Ollama server to be ready..."
     sleep 2
 done
