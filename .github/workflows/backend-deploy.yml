@@ -1,5 +1,3 @@
-# .github/workflows/backend-deploy.yml
-
 name: Deploy Backend Services
 
 on:
@@ -10,8 +8,6 @@ on:
       - 'node-backend/**'
       - 'ollama-server/**'
       - 'terraform/**'
-      - 'event-driven-functions/**'
-      - 'scripts/**'
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:  # Allow manual triggers
 
@@ -62,13 +58,6 @@ jobs:
         docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
         docker push gcr.io/$PROJECT_ID/ollama:latest
         cd ..
-
-    - name: Prepare and Upload Function Source
-      run: |
-        # Make script executable
-        chmod +x scripts/prepare_function.sh
-        # Run script to prepare and upload function source
-        ./scripts/prepare_function.sh ${{ env.PROJECT_ID }} ${{ env.REGION }}
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2

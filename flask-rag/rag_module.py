@@ -61,20 +61,20 @@ class ChatPDF:
     def ingest(self, pdf_file_path: str) -> dict:
         """Ingest a PDF file and return status"""
         try:
-            logger.info(f"Starting ingestion for file: {pdf_file_path}")
+            logger.info(f"rag_module: Starting ingestion for file: {pdf_file_path}")
             docs = PyPDFLoader(file_path=pdf_file_path).load()
             chunks = self.text_splitter.split_documents(docs)
             chunks = filter_complex_metadata(chunks)
             # print(f"Number of chunks: {len(chunks)}")
             # print(f"Example chunk: {chunks[0]}")
-            print(f"self.embeddings: {self.embeddings}")
+            logger.info(f"rag_module -> function ingest -> self.embeddings: {self.embeddings}")
             self.vector_store = Chroma.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
                 client=self.client,
             )
 
-            logger.info("Ingestion completed successfully")
+            logger.info("Ingestion in rag_module completed successfully")
             return {"status": "success", "message": "Document ingested successfully"}
         except Exception as e:
             logger.error(f"Error during ingestion: {str(e)}")
