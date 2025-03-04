@@ -12,7 +12,7 @@ resource "google_cloud_run_service" "ollama" {
 
         # Define the port
         ports {
-          container_port = 8080
+          container_port = 11434  # Updated to match Ollama's port
         }
 
         resources {
@@ -22,7 +22,16 @@ resource "google_cloud_run_service" "ollama" {
           }
         }
 
-        # startup_probe removed
+        # Add startup probe
+        startup_probe {
+          tcp_socket {
+            port = 11434
+          }
+          initial_delay_seconds = 0
+          period_seconds        = 240
+          timeout_seconds       = 3
+          failure_threshold     = 3
+        }
       }
 
       timeout_seconds = 900
