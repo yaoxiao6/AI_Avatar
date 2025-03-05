@@ -4,7 +4,7 @@
 
 # Environment variables
 PROJECT_ID=${1:-"ai-avatar-451519"}
-REGION=${2:-"us-east1"}
+REGION=${2:-"us-central1"}
 SOURCE_DIR="event-driven-functions"
 TEMP_DIR="/tmp/function-source"
 SOURCE_BUCKET="${PROJECT_ID}-source-code"

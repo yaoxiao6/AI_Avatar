@@ -5,7 +5,7 @@ set -e  # Exit on any error
 
 # Configuration variables
 PROJECT_ID="ai-avatar-451519"
-REGION="us-east1"
+REGION="us-central1"
 
 echo "🚀 Starting local deployment process..."
 

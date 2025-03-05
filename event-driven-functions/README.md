@@ -27,7 +27,7 @@ gsutil cp test.pdf gs://ai-avatar-451519-storage/pdfs/
 3. Check the Cloud Function logs:
 
 ```bash
-gcloud functions logs read ingest-pdf --gen2 --region=us-east1
+gcloud functions logs read ingest-pdf --gen2 --region=us-central1
 ```
 
 ## Customization

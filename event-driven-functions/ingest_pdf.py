@@ -8,7 +8,7 @@ import functions_framework
 from google.cloud import storage
 
 # Get the API endpoint from environment variables or use the default
-API_ENDPOINT = os.environ.get("API_ENDPOINT", "https://flask-rag-579795762739.us-east1.run.app/ingest")
+API_ENDPOINT = os.environ.get("API_ENDPOINT", "https://flask-rag-579795762739.us-central1.run.app/ingest")
 
 @functions_framework.cloud_event
 def process_pdf(cloud_event):
