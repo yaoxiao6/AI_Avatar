@@ -2,52 +2,107 @@
 
 FROM ollama/ollama:latest
 
-# Create startup script with fixed model pulling and proper binding
+# Install curl for healthchecks and utilities
+RUN apt-get update && apt-get install -y curl jq && rm -rf /var/lib/apt/lists/*
+
+# Create startup script with improved health checking
 COPY <<EOF /usr/local/bin/start.sh
 #!/bin/bash
+set -e
 
 # Set binding to all interfaces
 export OLLAMA_HOST=0.0.0.0
 
-# Start Ollama server in the background with proper binding
+echo "Starting Ollama server..."
+# Start Ollama server in the background
 ollama serve &
 OLLAMA_PID=$!
-echo "Ollama server started with PID $OLLAMA_PID"
 
-# sleep 2
+# Function to check if Ollama is ready
+check_ollama() {
+  # Use localhost (127.0.0.1) not 0.0.0.0 for connection
+  if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+    return 0
+  else
+    return 1
+  fi
+}
 
-# Wait for Ollama to be ready
-# GCP keeps "Waiting for Ollama server to be ready..." forever. 
-until curl -s localhost:11434 > /dev/null 2>&1; do
-    echo "Waiting for Ollama server to be ready..."
-    sleep 2
+# Wait for Ollama with a longer timeout and better feedback
+echo "Waiting for Ollama server to be ready..."
+RETRY_COUNT=0
+MAX_RETRIES=30
+SLEEP_TIME=10
+
+until check_ollama; do
+  RETRY_COUNT=$((RETRY_COUNT+1))
+  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+    echo "ERROR: Ollama server failed to start after $((RETRY_COUNT * SLEEP_TIME)) seconds"
+    echo "Server logs:"
+    ps aux | grep ollama
+    exit 1
+  fi
+  
+  echo "Waiting for Ollama server (attempt $RETRY_COUNT/$MAX_RETRIES)..."
+  sleep $SLEEP_TIME
+  
+  # Check if Ollama process is still running
+  if ! kill -0 $OLLAMA_PID 2>/dev/null; then
+    echo "ERROR: Ollama process died unexpectedly"
+    exit 1
+  fi
 done
 
 echo "Ollama server is ready. Pulling models..."
 
-# Pull models one by one with proper quoting
-echo "Pulling mxbai-embed-large:latest..."
-if ! ollama pull mxbai-embed-large:latest; then
-    echo "Failed to pull mxbai-embed-large:latest"
-    exit 1
-fi
+# Pull models with improved error handling and progress tracking
+pull_model() {
+  local model=$1
+  echo "Pulling $model..."
+  
+  # Try pulling with a timeout
+  if timeout 1800 ollama pull $model; then
+    echo "✅ Successfully pulled $model"
+    return 0
+  else
+    echo "❌ Failed to pull $model"
+    return 1
+  fi
+}
 
-echo "Pulling deepseek-r1:1.5b..."
-if ! ollama pull deepseek-r1:1.5b; then
-    echo "Failed to pull deepseek-r1:1.5b"
-    exit 1
-fi
+# Pull models with retry logic
+MODELS=("mxbai-embed-large:latest" "deepseek-r1:1.5b")
+for model in "${MODELS[@]}"; do
+  for attempt in {1..3}; do
+    echo "Pulling $model (attempt $attempt/3)"
+    if pull_model $model; then
+      break
+    elif [ $attempt -eq 3 ]; then
+      echo "ERROR: Failed to pull $model after 3 attempts"
+      # Continue anyway - don't exit
+    else
+      echo "Retrying in 30 seconds..."
+      sleep 30
+    fi
+  done
+done
 
-echo "Here are available models:"
+echo "Listing available models:"
 ollama list
 
-# Keep container running - using the Ollama process directly
-wait
+echo "Ollama setup complete!"
+
+# Keep container running by following the Ollama process
+wait $OLLAMA_PID
 EOF
 
 RUN chmod +x /usr/local/bin/start.sh
 
 # Only expose the Ollama API port
 EXPOSE 11434
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:11434/api/tags || exit 1
 
 ENTRYPOINT ["/usr/local/bin/start.sh"]

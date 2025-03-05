@@ -1,6 +1,5 @@
 # AI_Avatar/terraform/main.tf
-
-# ollama service without startup_probe
+# Ollama service with GPU acceleration
 resource "google_cloud_run_service" "ollama" {
   name     = "ollama"
   location = var.region
@@ -12,29 +11,47 @@ resource "google_cloud_run_service" "ollama" {
 
         # Define the port
         ports {
-          container_port = 11434  # Updated to match Ollama's port
+          container_port = 11434
         }
 
         resources {
           limits = {
-            cpu    = "2000m"
-            memory = "4Gi"
+            cpu    = "4000m"
+            memory = "8Gi"
+            # Add GPU configuration
+            "cloud.google.com/gpu" = 1
           }
         }
 
-        # Add startup probe
+        # Add startup probe with longer timeouts
         startup_probe {
           tcp_socket {
             port = 11434
           }
-          initial_delay_seconds = 0
-          period_seconds        = 240
-          timeout_seconds       = 3
-          failure_threshold     = 3
+          initial_delay_seconds = 10
+          period_seconds        = 300
+          timeout_seconds       = 10
+          failure_threshold     = 5
+        }
+
+        # Add environment variables
+        env {
+          name  = "OLLAMA_HOST"
+          value = "0.0.0.0"
         }
       }
 
-      timeout_seconds = 900
+      # Increase timeout for model loading
+      timeout_seconds = 1200
+    }
+
+    metadata {
+      annotations = {
+        # Specify GPU type - T4 is a good starting point
+        "run.googleapis.com/gpu-type" = "nvidia-tesla-t4"
+        # Direct VPC egress if you need it
+        # "run.googleapis.com/vpc-access-egress" = "all-traffic"
+      }
     }
   }
 
@@ -42,6 +59,16 @@ resource "google_cloud_run_service" "ollama" {
     percent         = 100
     latest_revision = true
   }
+}
+
+# IAM binding to make the service public
+resource "google_cloud_run_service_iam_binding" "ollama_public" {
+  location = google_cloud_run_service.ollama.location
+  service  = google_cloud_run_service.ollama.name
+  role     = "roles/run.invoker"
+  members  = [
+    "allUsers",
+  ]
 }
 
 # flask-rag service without startup_probe
