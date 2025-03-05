@@ -29,7 +29,7 @@ resource "google_cloud_run_service" "ollama" {
             port = 11434
           }
           initial_delay_seconds = 10
-          period_seconds        = 300
+          period_seconds        = 240
           timeout_seconds       = 10
           failure_threshold     = 5
         }
