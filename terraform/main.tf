@@ -18,7 +18,7 @@ resource "google_cloud_run_service" "ollama" {
         resources {
           limits = {
             cpu    = "4000m"
-            memory = "8Gi"
+            memory = "16Gi"
             # Add GPU configuration with correct syntax
             "nvidia.com/gpu" = 1
           }
@@ -169,7 +169,7 @@ data "google_iam_policy" "noauth" {
 
 # Allow public access to Flask RAG
 resource "google_cloud_run_service_iam_policy" "flask_rag_noauth" {
-  location    = google_cloud_run_service.flask_rag.location
+  location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.flask_rag.name
   policy_data = data.google_iam_policy.noauth.policy_data
@@ -177,7 +177,7 @@ resource "google_cloud_run_service_iam_policy" "flask_rag_noauth" {
 
 # Allow public access to Node Backend
 resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
-  location    = google_cloud_run_service.node_backend.location
+  location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.node_backend.name
   policy_data = data.google_iam_policy.noauth.policy_data
@@ -185,7 +185,7 @@ resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
 
 # Allow public access to Ollama
 resource "google_cloud_run_service_iam_policy" "ollama_noauth" {
-  location    = google_cloud_run_service.ollama.location
+  location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.ollama.name
   policy_data = data.google_iam_policy.noauth.policy_data
