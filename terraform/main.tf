@@ -1,4 +1,5 @@
 # AI_Avatar/terraform/main.tf
+
 # Ollama service with GPU acceleration
 resource "google_cloud_run_service" "ollama" {
   name     = "ollama"
@@ -18,8 +19,8 @@ resource "google_cloud_run_service" "ollama" {
           limits = {
             cpu    = "4000m"
             memory = "8Gi"
-            # Add GPU configuration
-            "cloud.google.com/gpu" = 1
+            # Add GPU configuration with correct syntax
+            "nvidia.com/gpu" = 1
           }
         }
 
