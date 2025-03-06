@@ -4,26 +4,33 @@
 resource "google_cloud_run_service" "ollama" {
   name     = "ollama"
   location = var.region
-
+  metadata {
+    annotations = {
+      "run.googleapis.com/launch-stage" = "BETA"
+    }
+  }
   template {
+    metadata {
+      annotations = {
+        "autoscaling.knative.dev/maxScale": "1"
+        "run.googleapis.com/cpu-throttling": "false"
+      }
+    }
     spec {
       containers {
         image = "gcr.io/${var.project_id}/ollama:latest"
-
-        # Define the port
-        ports {
-          container_port = 11434
-        }
-
         resources {
           limits = {
-            cpu    = "4000m"
+            cpu    = "4"
             memory = "16Gi"
             # Add GPU configuration with correct syntax
             "nvidia.com/gpu" = 1
           }
         }
-
+        # Define the port
+        ports {
+          container_port = 11434
+        }
         # Add startup probe with longer timeouts
         startup_probe {
           tcp_socket {
@@ -41,21 +48,10 @@ resource "google_cloud_run_service" "ollama" {
           value = "0.0.0.0"
         }
       }
-
       # Increase timeout for model loading
       timeout_seconds = 1200
     }
-
-    metadata {
-      annotations = {
-        # Specify GPU type - T4 is a good starting point
-        "run.googleapis.com/gpu-type" = "nvidia-tesla-t4"
-        # Direct VPC egress if you need it
-        # "run.googleapis.com/vpc-access-egress" = "all-traffic"
-      }
-    }
   }
-
   traffic {
     percent         = 100
     latest_revision = true
@@ -67,7 +63,7 @@ resource "google_cloud_run_service_iam_binding" "ollama_public" {
   location = google_cloud_run_service.ollama.location
   service  = google_cloud_run_service.ollama.name
   role     = "roles/run.invoker"
-  members  = [
+  members = [
     "allUsers",
   ]
 }
