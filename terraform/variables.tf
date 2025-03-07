@@ -17,3 +17,10 @@ variable "domain" {
   type        = string
   default     = "yaoxiao.org."
 }
+
+variable "db_password" {
+  description = "PostgreSQL database password"
+  type        = string
+  sensitive   = true
+  # No default value for security reasons - provide via environment variable or tfvars file
+}
