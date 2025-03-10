@@ -1,3 +1,5 @@
+# AI_Avatar/ollama-server/dockerfile
+
 FROM ollama/ollama:latest
 
 # Install curl for healthchecks and utilities
@@ -17,8 +19,8 @@ OLLAMA_PID=$!\n\
 \n\
 # Function to check if Ollama is ready\n\
 check_ollama() {\n\
-  # Use localhost (127.0.0.1) not 0.0.0.0 for connection\n\
-  if curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then\n\
+  # Use the same host as the binding\n\
+  if curl -s http://0.0.0.0:11434/api/tags > /dev/null 2>&1; then\n\
     return 0\n\
   else\n\
     return 1\n\
@@ -60,7 +62,15 @@ pull_model() {\n\
   # Try pulling with a timeout\n\
   if timeout 1800 ollama pull $model; then\n\
     echo "✅ Successfully pulled $model"\n\
-    return 0\n\
+    \n\
+    # Verify the model is actually available by checking the API\n\
+    if curl -s http://0.0.0.0:11434/api/tags | jq -e ".models[] | select(.name == \"$model\")" > /dev/null; then\n\
+      echo "✅ Model $model confirmed in API"\n\
+      return 0\n\
+    else\n\
+      echo "⚠️ Model $model pulled but not showing in API"\n\
+      return 1\n\
+    fi\n\
   else\n\
     echo "❌ Failed to pull $model"\n\
     return 1\n\
@@ -73,6 +83,16 @@ for model in "${MODELS[@]}"; do\n\
   for attempt in {1..3}; do\n\
     echo "Pulling $model (attempt $attempt/3)"\n\
     if pull_model $model; then\n\
+      # Pre-warm the model by making a sample request\n\
+      if [[ "$model" == *"embed"* ]]; then\n\
+        echo "Pre-warming embed model $model..."\n\
+        curl -X POST http://0.0.0.0:11434/api/embed -d "{\\"model\\": \\"$model\\", \\"prompt\\": \\"Hello world\\"}" -H "Content-Type: application/json"\n\
+        echo ""\n\
+      elif [[ "$model" == *"deepseek"* ]]; then\n\
+        echo "Pre-warming LLM model $model..."\n\
+        curl -X POST http://0.0.0.0:11434/api/generate -d "{\\"model\\": \\"$model\\", \\"prompt\\": \\"Hello world\\"}" -H "Content-Type: application/json"\n\
+        echo ""\n\
+      fi\n\
       break\n\
     elif [ $attempt -eq 3 ]; then\n\
       echo "ERROR: Failed to pull $model after 3 attempts"\n\
@@ -87,6 +107,10 @@ done\n\
 echo "Listing available models:"\n\
 ollama list\n\
 \n\
+# Verify models are accessible via API\n\
+echo "Verifying models via API:"\n\
+curl -s http://0.0.0.0:11434/api/tags | jq\n\
+\n\
 echo "Ollama setup complete!"\n\
 \n\
 # Keep container running by following the Ollama process\n\
@@ -97,8 +121,8 @@ RUN chmod +x /usr/local/bin/start.sh
 # Only expose the Ollama API port
 EXPOSE 11434
 
-# Health check
+# Health check using the same address binding as the service
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:11434/api/tags || exit 1
+  CMD curl -f http://0.0.0.0:11434/api/tags || exit 1
 
 ENTRYPOINT ["/usr/local/bin/start.sh"]
