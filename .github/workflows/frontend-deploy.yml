@@ -42,39 +42,32 @@ jobs:
 
     - name: Prepare for App Engine deployment
       run: |
-        cd quasar-frontend/dist
+        cd quasar-frontend
         
-        # Create server.js for App Engine
-        cat > server.js << 'EOL'
-        const express = require('express');
-        const path = require('path');
-        const app = express();
-
-        app.use(express.static(path.join(__dirname, 'spa')));
-
-        app.get('*', (req, res) => {
-          res.sendFile(path.join(__dirname, 'spa', 'index.html'));
-        });
-
-        const PORT = process.env.PORT || 8080;
-        app.listen(PORT, () => {
-          console.log(`Server listening on port ${PORT}`);
-        });
-        EOL
-        
-        # Initialize npm and install express
-        npm init -y
-        npm install express
-        
-        # Create app.yaml with explicit max_instances setting
-        cat > app.yaml << 'EOL'
+        # Create app.yaml with correct MIME type settings
+        cat > dist/spa/app.yaml << 'EOL'
         runtime: nodejs20
 
         handlers:
-        - url: /.*
-          secure: always
-          script: auto
-          
+          # Handle JavaScript files with correct MIME type
+          - url: /(.*\.js)$
+            static_files: \1
+            upload: .*\.js$
+            mime_type: application/javascript
+            secure: always
+
+          # Handle other static assets
+          - url: /(.*\.(css|png|jpg|gif|svg|ico|json|woff|woff2|ttf|eot))$
+            static_files: \1
+            upload: .*\.(css|png|jpg|gif|svg|ico|json|woff|woff2|ttf|eot)$
+            secure: always
+
+          # Handle all routes for SPA
+          - url: /.*
+            static_files: index.html
+            upload: index\.html
+            secure: always
+            
         automatic_scaling:
           max_instances: 20
         EOL
@@ -95,6 +88,5 @@ jobs:
 
     - name: Deploy to App Engine
       run: |
-        cd quasar-frontend/dist
+        cd quasar-frontend/dist/spa
         gcloud app deploy --quiet
-

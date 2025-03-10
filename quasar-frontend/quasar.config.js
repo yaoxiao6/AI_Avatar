@@ -1,5 +1,4 @@
-// Configuration for your app
-// https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
+// AI_Avatar/quasar-frontend/src/quasar.config.js
 
 import { defineConfig } from '#q-app/wrappers'
 import { fileURLToPath } from 'node:url'
@@ -44,21 +43,21 @@ export default defineConfig((ctx) => {
         node: 'node20'
       },
 
-      vueRouterMode: 'hash', // available values: 'hash', 'history'
+      vueRouterMode: 'history', // available values: 'hash', 'history'
       // vueRouterBase,
       // vueDevtools,
       // vueOptionsAPI: false,
 
       // rebuildCache: true, // rebuilds Vite/linter/etc cache on startup
 
-      // publicPath: '/',
+      publicPath: '/',
       // analyze: true,
       // env: {},
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,
       // polyfillModulePreload: true,
-      // distDir
+      distDir: 'dist/spa',
 
       // extendViteConf (viteConf) {},
       // viteVuePluginOptions: {},
