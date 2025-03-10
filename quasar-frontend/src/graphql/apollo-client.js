@@ -4,6 +4,7 @@ import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client/core
 // Create the http link
 const httpLink = createHttpLink({
   uri: 'https://node-backend-579795762739.us-central1.run.app/graphql', // hard-coded for now
+  // uri: 'http://localhost:4000/graphql', // hard-coded for now
   fetchOptions: {
     mode: 'cors',
   },

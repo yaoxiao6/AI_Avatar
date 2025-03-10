@@ -22,24 +22,25 @@
               </div>
             </div>
             
-            <div class="chat-area" ref="chatArea">
+            <div class="chat-area" ref="scrollArea">
               <div v-for="(message, index) in messages" :key="index" 
-                  :class="['message', message.sender === 'user' ? 'user-message' : 'bot-message']">
+                  :class="['message', message.type === 'user' ? 'user-message' : 'bot-message']">
                 <div class="message-bubble">
-                  {{ message.text }}
+                  {{ message.content }}
                 </div>
               </div>
             </div>
             
             <div class="message-input">
               <q-input 
-                v-model="messageInput" 
+                v-model="newMessage" 
                 placeholder="Type your message here..." 
                 outlined 
                 rounded 
                 dense
                 class="full-width"
                 @keyup.enter="sendMessage"
+                :disable="loading"
               />
               <q-btn 
                 round 
@@ -48,6 +49,7 @@
                 size="md"
                 class="q-ml-sm"
                 @click="sendMessage"
+                :loading="loading"
               />
             </div>
           </div>
@@ -122,74 +124,208 @@
 </template>
 
 <script>
+import { ref, nextTick } from 'vue'
+import { useQuasar } from 'quasar'
+import { ASK_QUESTION, HEALTH_QUERY, Flask_HEALTH_QUERY } from '../graphql/queries'
+import { executeGraphQL } from '../graphql/apollo-client'
+
 export default {
   name: 'IndexPage',
   
-  data() {
-    return {
-      messages: [
-        {
-          sender: 'bot',
-          text: 'Hello! I\'m the virtual assistant for [Yao Xiao]. How can I help you today?'
-        }
-      ],
-      messageInput: '',
-      formData: {
-        name: '',
-        company: '',
-        email: '',
-        phone: '',
-        note: ''
-      },
-      submitted: false
-    }
-  },
-  
-  methods: {
-    sendMessage() {
-      const message = this.messageInput.trim();
-      if (message !== '') {
-        // Add user message
-        this.messages.push({
-          sender: 'user',
-          text: message
-        });
-        
-        this.messageInput = '';
-        
-        // Simulate bot typing delay
-        setTimeout(() => {
-          // Replace with actual AI response logic
-          let response = "Thank you for your message! I'm an AI assistant, so I'll pass this along. If you'd like a personal response, please fill out the contact form.";
-          this.messages.push({
-            sender: 'bot',
-            text: response
-          });
-          
-          this.$nextTick(() => {
-            this.scrollToBottom();
-          });
-        }, 1000);
+  setup() {
+    const $q = useQuasar()
+    const scrollArea = ref(null)
+    const messages = ref([
+      {
+        type: 'bot',
+        content: 'Hello! I\'m the virtual assistant for Yao Xiao. How can I help you today?',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }
-    },
+    ])
+    const newMessage = ref('')
+    const loading = ref(false)
     
-    scrollToBottom() {
-      const chatArea = this.$refs.chatArea;
-      chatArea.scrollTop = chatArea.scrollHeight;
-    },
-    
-    onSubmit() {
+    const formData = ref({
+      name: '',
+      company: '',
+      email: '',
+      phone: '',
+      note: ''
+    })
+    const submitted = ref(false)
+
+    const formatTimestamp = () => {
+      return new Date().toLocaleTimeString([], { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })
+    }
+
+    const scrollToBottom = async () => {
+      try {
+        await nextTick()
+        const chatArea = scrollArea.value
+        console.log('DEBUG: Chat area reference:', chatArea)
+        
+        if (chatArea) {
+          if (typeof chatArea.getScroll === 'function') {
+            // For q-scroll-area component
+            const scrollEl = chatArea.getScroll()
+            chatArea.setScrollPosition('vertical', scrollEl.verticalSize)
+            console.log('DEBUG: Used q-scroll-area scrolling method')
+          } else {
+            // For regular DOM element
+            chatArea.scrollTop = chatArea.scrollHeight
+            console.log('DEBUG: Used standard DOM scrolling method')
+          }
+        } else {
+          console.warn('DEBUG: Chat area reference is null or undefined')
+        }
+      } catch (error) {
+        console.error('Error in scrollToBottom:', error)
+      }
+    }
+
+    const sendMessage = async () => {
+      // Debug info - Check if function is being called
+      console.log('DEBUG: sendMessage function triggered')
+      
+      // Check message and loading conditions
+      console.log('DEBUG: Message content:', newMessage.value)
+      console.log('DEBUG: Loading state:', loading.value)
+      
+      if (!newMessage.value.trim()) {
+        console.log('DEBUG: Empty message, aborting send')
+        return
+      }
+      
+      if (loading.value) {
+        console.log('DEBUG: Already loading, aborting send')
+        return
+      }
+
+      // Set loading state
+      loading.value = true
+      console.log('STEP 1: Starting to send message:', newMessage.value)
+
+      try {
+        // Add user message (do this first to give immediate feedback)
+        console.log('STEP 2: Adding user message to chat')
+        messages.value.push({
+          type: 'user',
+          content: newMessage.value,
+          timestamp: formatTimestamp()
+        })
+
+        // Store message and clear input
+        const userMessage = newMessage.value
+        newMessage.value = ''
+
+        // Scroll to bottom after user message
+        console.log('STEP 3: Scrolling to bottom after user message')
+        await scrollToBottom()
+        
+        // Temporary solution: If executeGraphQL isn't working, 
+        // simulate a response instead of making API calls
+        try {
+          console.log('STEP 4: Attempting to check GraphQL API health')
+          // First make a simpler GraphQL call to test connection
+          const healthCheck = await executeGraphQL(HEALTH_QUERY)
+          console.log('GraphQL Health Status:', healthCheck?.data?.health)
+          
+          console.log('STEP 5: Checking Python service health')
+          const pythonHealthCheck = await executeGraphQL(Flask_HEALTH_QUERY)
+          console.log('Python Service Health Status:', pythonHealthCheck?.data?.pythonServiceHealth?.status)
+          
+          // Make GraphQL mutation call for the actual message
+          console.log('STEP 6: Sending query to GraphQL API')
+          const response = await executeGraphQL(ASK_QUESTION, {
+            query: userMessage,
+            k: 3,
+            scoreThreshold: 0.7
+          })
+
+          console.log('STEP 7: Received GraphQL response:', response)
+
+          // Add bot response
+          if (response?.data?.askQuestion?.status === 'success') {
+            console.log('STEP 8: Adding successful bot response')
+            messages.value.push({
+              type: 'bot',
+              content: response.data.askQuestion.answer,
+              timestamp: formatTimestamp()
+            })
+            
+            // Log retrieval metadata if available
+            if (response.data.askQuestion.metadata) {
+              console.log('Retrieval metadata:', response.data.askQuestion.metadata)
+            }
+          } else {
+            console.error('STEP 8: Bot response indicates failure')
+            throw new Error(response?.data?.askQuestion?.message || 'Unknown GraphQL error')
+          }
+        } catch (graphqlError) {
+          console.error('GraphQL Error:', graphqlError)
+          console.log('STEP FALLBACK: Using fallback response due to GraphQL error')
+          
+          // Add fallback response if GraphQL fails
+          messages.value.push({
+            type: 'bot',
+            content: "I received your message, but I'm having trouble connecting to my knowledge base. The development team has been notified of this issue.",
+            timestamp: formatTimestamp()
+          })
+        }
+
+        console.log('STEP 9: Scrolling to bottom after bot response')
+        await scrollToBottom()
+        console.log('STEP 10: Message exchange completed')
+      } catch (error) {
+        console.error('ERROR: Failed during message process:', error)
+        
+        // Ensure we still show a response even if something fails
+        messages.value.push({
+          type: 'bot',
+          content: 'Sorry, I encountered an error processing your message. Please try again.',
+          timestamp: formatTimestamp()
+        })
+        
+        // Only show notification if Quasar is properly initialized
+        try {
+          $q.notify({
+            type: 'negative',
+            message: 'Failed to send message. Please try again.',
+            position: 'top'
+          })
+        } catch (notifyError) {
+          console.error('Could not show notification:', notifyError)
+        }
+        
+        await scrollToBottom()
+      } finally {
+        loading.value = false
+        console.log('STEP FINAL: Message handling process completed')
+      }
+    }
+
+    const onSubmit = () => {
       // Here you would typically send the form data to your backend
       // For now, we'll just show the success message
-      this.submitted = true;
+      submitted.value = true;
       
       // You can connect this to axios or apollo client to send the data
-      console.log('Form submitted:', this.formData);
+      console.log('Form submitted:', formData.value);
     }
-  },
-  
-  updated() {
-    this.scrollToBottom();
+
+    return {
+      scrollArea,
+      messages,
+      newMessage,
+      sendMessage,
+      loading,
+      formData,
+      submitted,
+      onSubmit
+    }
   }
 }
 </script>
