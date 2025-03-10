@@ -58,16 +58,6 @@ resource "google_cloud_run_service" "ollama" {
   }
 }
 
-# IAM binding to make the service public
-resource "google_cloud_run_service_iam_binding" "ollama_public" {
-  location = google_cloud_run_service.ollama.location
-  service  = google_cloud_run_service.ollama.name
-  role     = "roles/run.invoker"
-  members = [
-    "allUsers",
-  ]
-}
-
 # flask-rag service without startup_probe
 resource "google_cloud_run_service" "flask_rag" {
   name     = "flask-rag"
@@ -138,20 +128,20 @@ resource "google_cloud_run_service" "node_backend" {
 }
 
 # Cloud DNS zone with corrected domain format
-resource "google_dns_managed_zone" "default" {
-  name        = "yaoxiao-zone"
-  dns_name    = "yaoxiao.org." # Correct format with single dot
-  description = "DNS zone for yaoxiao.org."
-}
+# resource "google_dns_managed_zone" "default" {
+#   name        = "yaoxiao-zone"
+#   dns_name    = "yaoxiao.org." # Correct format with single dot
+#   description = "DNS zone for yaoxiao.org."
+# }
 
-# DNS records for App Engine
-resource "google_dns_record_set" "frontend" {
-  name         = "yaoxiao.org." # Make sure this matches the dns_name format
-  managed_zone = google_dns_managed_zone.default.name
-  type         = "A"
-  ttl          = 300
-  rrdatas      = ["216.239.32.21", "216.239.34.21", "216.239.36.21", "216.239.38.21"] # Google's App Engine IP addresses
-}
+# # DNS records for App Engine
+# resource "google_dns_record_set" "frontend" {
+#   name         = "yaoxiao.org." # Make sure this matches the dns_name format
+#   managed_zone = google_dns_managed_zone.default.name
+#   type         = "A"
+#   ttl          = 300
+#   rrdatas      = ["216.239.32.21", "216.239.34.21", "216.239.36.21", "216.239.38.21"] # Google's App Engine IP addresses
+# }
 
 # IAM policy to make services public
 data "google_iam_policy" "noauth" {
@@ -163,26 +153,26 @@ data "google_iam_policy" "noauth" {
   }
 }
 
-# Allow public access to Flask RAG
 resource "google_cloud_run_service_iam_policy" "flask_rag_noauth" {
   location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.flask_rag.name
   policy_data = data.google_iam_policy.noauth.policy_data
+  depends_on = [google_cloud_run_service.flask_rag]
 }
 
-# Allow public access to Node Backend
 resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
   location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.node_backend.name
   policy_data = data.google_iam_policy.noauth.policy_data
+  depends_on = [google_cloud_run_service.node_backend]
 }
 
-# Allow public access to Ollama
 resource "google_cloud_run_service_iam_policy" "ollama_noauth" {
   location    = var.region
   project     = var.project_id
   service     = google_cloud_run_service.ollama.name
   policy_data = data.google_iam_policy.noauth.policy_data
+  depends_on = [google_cloud_run_service.ollama]
 }
