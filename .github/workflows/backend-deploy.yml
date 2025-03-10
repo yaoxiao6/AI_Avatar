@@ -1,3 +1,5 @@
+# AI_Avatar/.github/workflows/backend-deploy.yml
+
 name: Deploy Backend Services
 
 on:
@@ -80,9 +82,28 @@ jobs:
         # Handle App Engine application in state
         terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app || true
         
+        # If migrating from Cloud Run to GKE, remove old Cloud Run service
+        terraform state list | grep -q "google_cloud_run_service.ollama" && terraform state rm google_cloud_run_service.ollama || true
+        terraform state list | grep -q "google_cloud_run_service_iam_policy.ollama_noauth" && terraform state rm google_cloud_run_service_iam_policy.ollama_noauth || true
+        
         # Taint Cloud Run services to force recreation
         terraform taint google_cloud_run_service.flask_rag || true
         terraform taint google_cloud_run_service.node_backend || true
-        terraform taint google_cloud_run_service.ollama || true
         
         terraform apply -auto-approve
+    
+    - name: Verify GKE Deployment
+      run: |
+        # Get GKE cluster credentials
+        cluster_name=$(cd terraform && terraform output -raw gke_cluster_name)
+        gcloud container clusters get-credentials $cluster_name --region $REGION --project $PROJECT_ID
+        
+        # Check Ollama pod status
+        kubectl get pods -l app=ollama
+        
+        # Check if service is available
+        kubectl get service ollama-service
+        
+        # Output Ollama URL
+        echo "Ollama Service URL: $(cd terraform && terraform output -raw ollama_url)"
+

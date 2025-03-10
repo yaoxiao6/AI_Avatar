@@ -1,60 +1,202 @@
 # AI_Avatar/terraform/main.tf
 
-# Ollama service with GPU acceleration
-resource "google_cloud_run_service" "ollama" {
-  name     = "ollama"
+# Create a GKE cluster for Ollama
+resource "google_container_cluster" "ollama_cluster" {
+  name     = "ollama-cluster"
   location = var.region
-  metadata {
-    annotations = {
-      "run.googleapis.com/launch-stage" = "BETA"
+
+  # We can't create a cluster with no node pool defined, but we want to only use
+  # separately managed node pools. So we create the smallest possible default
+  # node pool and immediately delete it.
+  remove_default_node_pool = true
+  initial_node_count       = 1
+}
+
+# Create a node pool with GPU for Ollama
+resource "google_container_node_pool" "ollama_nodes" {
+  name       = "ollama-node-pool"
+  location   = var.region
+  cluster    = google_container_cluster.ollama_cluster.name
+  node_count = 1  # Starting with 1 node
+
+  # Node configuration
+  node_config {
+    machine_type = "n1-standard-4"  # 4 vCPUs, 15GB RAM
+    
+    # Reduce disk size to fit within quota
+    disk_size_gb = 100
+    disk_type    = "pd-standard"  # Use standard persistent disk instead of SSD
+
+    # GPU configuration
+    guest_accelerator {
+      type  = "nvidia-tesla-t4"  # T4 GPU
+      count = 1
+    }
+
+    # Enable required OAuth scopes for the node
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+
+    # Add labels to the nodes
+    labels = {
+      app = "ollama"
     }
   }
-  template {
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/maxScale": "1"
-        "run.googleapis.com/cpu-throttling": "false"
+
+  # Install GPU drivers automatically
+  management {
+    auto_repair  = true
+    auto_upgrade = true
+  }
+}
+
+# Kubernetes provider to deploy Ollama to GKE
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.ollama_cluster.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.ollama_cluster.master_auth.0.cluster_ca_certificate)
+}
+
+data "google_client_config" "default" {}
+
+# Kubernetes Deployment for Ollama
+resource "kubernetes_deployment" "ollama" {
+  metadata {
+    name = "ollama"
+    labels = {
+      app = "ollama"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        app = "ollama"
       }
     }
-    spec {
-      containers {
-        image = "gcr.io/${var.project_id}/ollama:latest"
-        resources {
-          limits = {
-            cpu    = "4"
-            memory = "16Gi"
-            # Add GPU configuration with correct syntax
-            "nvidia.com/gpu" = 1
-          }
+
+    template {
+      metadata {
+        labels = {
+          app = "ollama"
         }
-        # Define the port
-        ports {
-          container_port = 11434
-        }
-        # Add startup probe with longer timeouts
-        startup_probe {
-          tcp_socket {
-            port = 11434
+      }
+
+      spec {
+        container {
+          image = "gcr.io/${var.project_id}/ollama:latest"
+          name  = "ollama"
+
+          # Resource limits and requests
+          resources {
+            limits = {
+              cpu    = "4"
+              memory = "16Gi"
+              "nvidia.com/gpu" = 1
+            }
+            requests = {
+              cpu    = "2"
+              memory = "8Gi"
+            }
           }
-          initial_delay_seconds = 10
-          period_seconds        = 240
-          timeout_seconds       = 10
-          failure_threshold     = 5
+
+          # Container port
+          port {
+            container_port = 11434
+          }
+
+          # Environment variables
+          env {
+            name  = "OLLAMA_HOST"
+            value = "0.0.0.0"
+          }
+
+          # Volume mounts for model persistence
+          volume_mount {
+            name       = "ollama-models"
+            mount_path = "/root/.ollama"
+          }
+
+          # Liveness probe
+          liveness_probe {
+            http_get {
+              path = "/api/tags"
+              port = 11434
+            }
+            initial_delay_seconds = 300
+            period_seconds        = 60
+            timeout_seconds       = 10
+            failure_threshold     = 3
+          }
+
+          # Startup probe with longer timeout for model loading
+          startup_probe {
+            http_get {
+              path = "/api/tags"
+              port = 11434
+            }
+            initial_delay_seconds = 60
+            period_seconds        = 30
+            timeout_seconds       = 10
+            failure_threshold     = 20  # 10 minutes total for startup
+          }
         }
 
-        # Add environment variables
-        env {
-          name  = "OLLAMA_HOST"
-          value = "0.0.0.0"
+        # Node selector to ensure pods are scheduled on GPU nodes
+        node_selector = {
+          "cloud.google.com/gke-accelerator" = "nvidia-tesla-t4"
+        }
+
+        # Volume for model persistence
+        volume {
+          name = "ollama-models"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim.ollama_models.metadata.0.name
+          }
         }
       }
-      # Increase timeout for model loading
-      timeout_seconds = 1200
     }
   }
-  traffic {
-    percent         = 100
-    latest_revision = true
+
+  depends_on = [
+    google_container_node_pool.ollama_nodes,
+    kubernetes_persistent_volume_claim.ollama_models
+  ]
+}
+
+# Persistent Volume Claim for Ollama models
+resource "kubernetes_persistent_volume_claim" "ollama_models" {
+  metadata {
+    name = "ollama-models-pvc"
+  }
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    resources {
+      requests = {
+        storage = "30Gi"  # Reduced size to fit within quota
+      }
+    }
+    storage_class_name = "standard"  # Using standard storage class (not SSD)
+  }
+}
+
+# Kubernetes Service for Ollama
+resource "kubernetes_service" "ollama" {
+  metadata {
+    name = "ollama-service"
+  }
+  spec {
+    selector = {
+      app = kubernetes_deployment.ollama.metadata.0.labels.app
+    }
+    port {
+      port        = 80
+      target_port = 11434
+    }
+    type = "LoadBalancer"
   }
 }
 
@@ -82,10 +224,8 @@ resource "google_cloud_run_service" "flask_rag" {
 
         env {
           name  = "OLLAMA_BASE_URL"
-          value = google_cloud_run_service.ollama.status[0].url
+          value = "http://${kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip}"
         }
-
-        # startup_probe removed
       }
 
       timeout_seconds = 900
@@ -96,6 +236,8 @@ resource "google_cloud_run_service" "flask_rag" {
     percent         = 100
     latest_revision = true
   }
+
+  depends_on = [kubernetes_service.ollama]
 }
 
 # Cloud Run service for Node.js backend
@@ -127,22 +269,6 @@ resource "google_cloud_run_service" "node_backend" {
   }
 }
 
-# Cloud DNS zone with corrected domain format
-# resource "google_dns_managed_zone" "default" {
-#   name        = "yaoxiao-zone"
-#   dns_name    = "yaoxiao.org." # Correct format with single dot
-#   description = "DNS zone for yaoxiao.org."
-# }
-
-# # DNS records for App Engine
-# resource "google_dns_record_set" "frontend" {
-#   name         = "yaoxiao.org." # Make sure this matches the dns_name format
-#   managed_zone = google_dns_managed_zone.default.name
-#   type         = "A"
-#   ttl          = 300
-#   rrdatas      = ["216.239.32.21", "216.239.34.21", "216.239.36.21", "216.239.38.21"] # Google's App Engine IP addresses
-# }
-
 # IAM policy to make services public
 data "google_iam_policy" "noauth" {
   binding {
@@ -167,12 +293,4 @@ resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
   service     = google_cloud_run_service.node_backend.name
   policy_data = data.google_iam_policy.noauth.policy_data
   depends_on = [google_cloud_run_service.node_backend]
-}
-
-resource "google_cloud_run_service_iam_policy" "ollama_noauth" {
-  location    = var.region
-  project     = var.project_id
-  service     = google_cloud_run_service.ollama.name
-  policy_data = data.google_iam_policy.noauth.policy_data
-  depends_on = [google_cloud_run_service.ollama]
 }
