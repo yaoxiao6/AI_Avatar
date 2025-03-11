@@ -1,5 +1,16 @@
 # AI_Avatar/terraform/main.tf
 
+# Data source to get external IP of the Ollama service
+data "kubernetes_service" "ollama" {
+  metadata {
+    name      = "ollama-service"
+    namespace = "default"
+  }
+  depends_on = [
+    data.google_container_cluster.my_cluster
+  ]
+}
+
 # flask-rag service without startup_probe
 resource "google_cloud_run_service" "flask_rag" {
   name     = "flask-rag"
@@ -24,7 +35,7 @@ resource "google_cloud_run_service" "flask_rag" {
 
         env {
           name  = "OLLAMA_BASE_URL"
-          value = "http://${kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip}"
+          value = "http://${data.kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip}"
         }
       }
 

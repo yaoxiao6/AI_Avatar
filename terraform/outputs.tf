@@ -9,7 +9,7 @@ output "node_backend_url" {
 }
 
 output "ollama_external_ip" {
-  value = kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip
+  value = data.kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip
 }
 
 output "frontend_url" {
