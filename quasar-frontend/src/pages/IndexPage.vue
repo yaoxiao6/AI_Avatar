@@ -18,7 +18,7 @@
               </q-avatar>
               <div class="profile-info">
                 <h2 class="profile-name q-ma-none">Yao Xiao</h2>
-                <p class="profile-status q-ma-none q-mt-sm">AI Assistant • Online (It is normal that each response takes roughly 5-10 seconds)</p>
+                <p class="profile-status q-ma-none q-mt-sm">AI Assistant • Online (It is normal that each response takes roughly 1 minute)</p>
               </div>
             </div>
             
