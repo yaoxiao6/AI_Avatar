@@ -16,6 +16,7 @@ on:
 env:
   PROJECT_ID: ai-avatar-451519
   REGION: us-central1
+  GKE_CLUSTER_NAME: ollama-cluster
 
 jobs:
   deploy-backend:
@@ -95,8 +96,7 @@ jobs:
     - name: Verify GKE Deployment
       run: |
         # Get GKE cluster credentials
-        cluster_name=$(cd terraform && terraform output -raw gke_cluster_name)
-        gcloud container clusters get-credentials $cluster_name --region $REGION --project $PROJECT_ID
+        gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $REGION --project $PROJECT_ID
         
         # Check Ollama pod status
         kubectl get pods -l app=ollama
@@ -104,6 +104,6 @@ jobs:
         # Check if service is available
         kubectl get service ollama-service
         
-        # Output Ollama URL
-        echo "Ollama Service URL: $(cd terraform && terraform output -raw ollama_url)"
+        # Output Ollama External IP
+        echo "Ollama Service External IP: $(cd terraform && terraform output -raw ollama_external_ip)"
 
