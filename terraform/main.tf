@@ -10,6 +10,10 @@ resource "google_container_cluster" "ollama_cluster" {
   # node pool and immediately delete it.
   remove_default_node_pool = true
   initial_node_count       = 1
+
+  # Network configuration
+  network    = "default"
+  subnetwork = "default"
 }
 
 # Create a node pool with GPU for Ollama
@@ -29,7 +33,7 @@ resource "google_container_node_pool" "ollama_nodes" {
 
     # GPU configuration
     guest_accelerator {
-      type  = "nvidia-tesla-t4"  # T4 GPU
+      type  = "nvidia-l4"
       count = 1
     }
 
@@ -42,6 +46,9 @@ resource "google_container_node_pool" "ollama_nodes" {
     labels = {
       app = "ollama"
     }
+
+    # Add service account for node
+    service_account = "default"
   }
 
   # Install GPU drivers automatically
@@ -120,28 +127,29 @@ resource "kubernetes_deployment" "ollama" {
             mount_path = "/root/.ollama"
           }
 
-          # Liveness probe
+          # Liveness probe - checks if service is responsive
           liveness_probe {
             http_get {
               path = "/api/tags"
               port = 11434
             }
-            initial_delay_seconds = 300
-            period_seconds        = 60
+            initial_delay_seconds = 300  # Allow time for initial model loading
+            period_seconds        = 60   # Check every minute
             timeout_seconds       = 10
-            failure_threshold     = 3
+            failure_threshold     = 3    # Three failures trigger a restart
           }
 
-          # Startup probe with longer timeout for model loading
-          startup_probe {
+          # Readiness probe - ensures service is ready to accept traffic
+          readiness_probe {
             http_get {
               path = "/api/tags"
               port = 11434
             }
-            initial_delay_seconds = 60
+            initial_delay_seconds = 60   # Start checking earlier than liveness
             period_seconds        = 30
             timeout_seconds       = 10
-            failure_threshold     = 20  # 10 minutes total for startup
+            failure_threshold     = 5    # More tolerant for readiness
+            success_threshold     = 1    # One success is enough to be ready
           }
         }
 
@@ -176,10 +184,10 @@ resource "kubernetes_persistent_volume_claim" "ollama_models" {
     access_modes = ["ReadWriteOnce"]
     resources {
       requests = {
-        storage = "30Gi"  # Reduced size to fit within quota
+        storage = "20Gi" # Storage size for models
       }
     }
-    storage_class_name = "standard"  # Using standard storage class (not SSD)
+    storage_class_name = "standard"
   }
 }
 

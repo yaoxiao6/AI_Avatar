@@ -45,14 +45,15 @@ spec:
           periodSeconds: 60
           timeoutSeconds: 10
           failureThreshold: 3
-        startupProbe:
+        readinessProbe:
           httpGet:
             path: /api/tags
             port: 11434
           initialDelaySeconds: 60
           periodSeconds: 30
           timeoutSeconds: 10
-          failureThreshold: 20
+          failureThreshold: 5
+          successThreshold: 1
       nodeSelector:
         cloud.google.com/gke-accelerator: "nvidia-tesla-t4"
       volumes:
