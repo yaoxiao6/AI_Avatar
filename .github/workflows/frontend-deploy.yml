@@ -13,6 +13,7 @@ on:
 env:
   PROJECT_ID: ai-avatar-451519
   REGION: us-central1
+  VUE_APP_API_URL: https://node-backend-579795762739.us-central1.run.app/graphql
 
 jobs:
   deploy-frontend:
@@ -39,6 +40,8 @@ jobs:
       run: |
         cd quasar-frontend
         npm run build
+      env:
+        VUE_APP_API_URL: ${{ env.VUE_APP_API_URL }}
 
     - name: Prepare for App Engine deployment
       run: |

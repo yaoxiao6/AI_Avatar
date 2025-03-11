@@ -1,10 +1,11 @@
 // AI_Avatar/quasar-frontend/src/graphql/apollo-client.js
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client/core'
 
+const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:4000/graphql'
+
 // Create the http link
 const httpLink = createHttpLink({
-  uri: 'https://node-backend-579795762739.us-central1.run.app/graphql', // hard-coded for now
-  // uri: 'http://localhost:4000/graphql', // hard-coded for now
+  uri: apiUrl,
   fetchOptions: {
     mode: 'cors',
   },
@@ -25,6 +26,7 @@ export const apolloClient = new ApolloClient({
       errorPolicy: 'all',
     },
   },
+  connectToDevTools: process.env.NODE_ENV !== 'production',
 })
 
 // Create a composable function to use the client

@@ -41,7 +41,7 @@ services:
     networks:
       - ai-network
     environment:
-      - FLASK_RAG_BASE_URL=http://flask-rag:5001
+      - FLASK_RAG_URL=http://flask-rag:8080
     depends_on:
       - flask-rag
 

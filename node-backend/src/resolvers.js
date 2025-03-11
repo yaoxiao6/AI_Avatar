@@ -1,4 +1,4 @@
-// src/resolvers.js
+// AI_Avatar/node-backend/src/resolvers.js
 const axios = require('axios');
 const FormData = require('form-data');
 const { PYTHON_SERVICE_URL } = require('./config');
@@ -17,7 +17,7 @@ const resolvers = {
             try {
                 logger.info(`Checking Python service health at ${PYTHON_SERVICE_URL}`);
                 const response = await axios.get(`${PYTHON_SERVICE_URL}`);
-                
+                logger.info('Python service health check response:', response.data);
                 if (response.data.status === 'healthy') {
                     logger.info('Python service health check successful');
                     return { status: 'healthy' };
@@ -54,15 +54,28 @@ const resolvers = {
                     k,
                     score_threshold: scoreThreshold
                 });
-        
+
+                // Extract only the real response by removing the <think>...</think> part
+                const responseData = response.data;
+                let processedResponse = responseData;
+
+                // Check if the response contains the think tags
+                if (typeof responseData.status === 'string' && responseData.status.includes('<think>')) {
+                    // Use regex to remove everything between and including <think></think>
+                    processedResponse = {
+                        ...responseData,
+                        status: responseData.status.replace(/<think>[\s\S]*?<\/think>\s*/, '')
+                    };
+                }
+
                 const duration = Date.now() - startTime;
                 logger.info('Question processing completed', {
                     query,
                     duration,
-                    responseStatus: response.data.status
+                    responseStatus: processedResponse.status
                 });
-        
-                return response.data;
+
+                return processedResponse;
             } catch (error) {
                 const duration = Date.now() - startTime;
                 

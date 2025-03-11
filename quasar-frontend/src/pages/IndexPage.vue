@@ -11,7 +11,7 @@
       <div class="row q-col-gutter-md">
         <!-- Chat Section -->
         <div class="col-12 col-md-8">
-          <div class="chat-section">
+          <q-card class="chat-section">
             <div class="profile-header">
               <q-avatar size="60px" class="q-mr-md">
                 <img src="~assets/your-profile.jpg" alt="Profile Picture">
@@ -22,16 +22,38 @@
               </div>
             </div>
             
-            <div class="chat-area" ref="scrollArea">
-              <div v-for="(message, index) in messages" :key="index" 
-                  :class="['message', message.type === 'user' ? 'user-message' : 'bot-message']">
-                <div class="message-bubble">
-                  {{ message.content }}
-                </div>
+            <!-- Properly using q-scroll-area component -->
+            <q-scroll-area
+              ref="scrollArea"
+              class="chat-area"
+              style="height: 400px;"
+            >
+              <div class="q-pa-md">
+                <template v-for="(message, index) in messages" :key="index">
+                  <q-chat-message
+                    v-if="message.type === 'user'"
+                    :text="[message.content]"
+                    sent
+                    text-color="white"
+                    bg-color="primary"
+                  >
+                    <template v-slot:name>You</template>
+                    <template v-slot:stamp>{{ message.timestamp }}</template>
+                  </q-chat-message>
+
+                  <q-chat-message
+                    v-else
+                    :text="[message.content]"
+                    bg-color="grey-3"
+                  >
+                    <template v-slot:name>Yao</template>
+                    <template v-slot:stamp>{{ message.timestamp }}</template>
+                  </q-chat-message>
+                </template>
               </div>
-            </div>
+            </q-scroll-area>
             
-            <div class="message-input">
+            <div class="message-input q-pa-md">
               <q-input 
                 v-model="newMessage" 
                 placeholder="Type your message here..." 
@@ -41,18 +63,21 @@
                 class="full-width"
                 @keyup.enter="sendMessage"
                 :disable="loading"
-              />
-              <q-btn 
-                round 
-                color="accent" 
-                icon="send" 
-                size="md"
-                class="q-ml-sm"
-                @click="sendMessage"
-                :loading="loading"
-              />
+              >
+                <template v-slot:append>
+                  <q-btn 
+                    round 
+                    flat
+                    color="accent" 
+                    icon="send" 
+                    @click="sendMessage"
+                    :loading="loading"
+                    :disable="!newMessage.trim()"
+                  />
+                </template>
+              </q-input>
             </div>
-          </div>
+          </q-card>
         </div>
         
         <!-- Contact Section -->
@@ -164,22 +189,9 @@ export default {
     const scrollToBottom = async () => {
       try {
         await nextTick()
-        const chatArea = scrollArea.value
-        console.log('DEBUG: Chat area reference:', chatArea)
-        
-        if (chatArea) {
-          if (typeof chatArea.getScroll === 'function') {
-            // For q-scroll-area component
-            const scrollEl = chatArea.getScroll()
-            chatArea.setScrollPosition('vertical', scrollEl.verticalSize)
-            console.log('DEBUG: Used q-scroll-area scrolling method')
-          } else {
-            // For regular DOM element
-            chatArea.scrollTop = chatArea.scrollHeight
-            console.log('DEBUG: Used standard DOM scrolling method')
-          }
-        } else {
-          console.warn('DEBUG: Chat area reference is null or undefined')
+        if (scrollArea.value) {
+          // Using Quasar's proper scroll method
+          scrollArea.value.setScrollPosition('vertical', 100000)
         }
       } catch (error) {
         console.error('Error in scrollToBottom:', error)
@@ -191,19 +203,10 @@ export default {
       console.log('DEBUG: sendMessage function triggered')
       
       // Check message and loading conditions
-      console.log('DEBUG: Message content:', newMessage.value)
-      console.log('DEBUG: Loading state:', loading.value)
-      
-      if (!newMessage.value.trim()) {
-        console.log('DEBUG: Empty message, aborting send')
+      if (!newMessage.value.trim() || loading.value) {
         return
       }
       
-      if (loading.value) {
-        console.log('DEBUG: Already loading, aborting send')
-        return
-      }
-
       // Set loading state
       loading.value = true
       console.log('STEP 1: Starting to send message:', newMessage.value)
@@ -290,15 +293,11 @@ export default {
         })
         
         // Only show notification if Quasar is properly initialized
-        try {
-          $q.notify({
-            type: 'negative',
-            message: 'Failed to send message. Please try again.',
-            position: 'top'
-          })
-        } catch (notifyError) {
-          console.error('Could not show notification:', notifyError)
-        }
+        $q.notify({
+          type: 'negative',
+          message: 'Failed to send message. Please try again.',
+          position: 'top'
+        })
         
         await scrollToBottom()
       } finally {
@@ -365,47 +364,10 @@ export default {
 
 .chat-area {
   flex: 1;
-  height: 400px;
-  overflow-y: auto;
-  padding: 20px;
   background-color: #f9f9f9;
 }
 
-.message {
-  margin-bottom: 15px;
-  display: flex;
-}
-
-.user-message {
-  justify-content: flex-end;
-}
-
-.bot-message {
-  justify-content: flex-start;
-}
-
-.message-bubble {
-  max-width: 80%;
-  padding: 10px 15px;
-  border-radius: 18px;
-  font-size: 15px;
-}
-
-.user-message .message-bubble {
-  background-color: $primary;
-  color: white;
-  border-top-right-radius: 4px;
-}
-
-.bot-message .message-bubble {
-  background-color: #e9e9e9;
-  border-top-left-radius: 4px;
-}
-
 .message-input {
-  display: flex;
-  align-items: center;
-  padding: 15px;
   border-top: 1px solid #eee;
 }
 
