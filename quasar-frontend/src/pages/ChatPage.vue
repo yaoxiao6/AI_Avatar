@@ -113,8 +113,8 @@ export default {
         // Make GraphQL mutation call using the executeGraphQL function
         const response = await executeGraphQL(ASK_QUESTION, {
           query: userMessage,
-          k: 3,
-          scoreThreshold: 0.7
+          k: 5,
+          scoreThreshold: 0.2
         })
 
         console.log('GraphQL response:', response)

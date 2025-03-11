@@ -1,3 +1,5 @@
+<!-- AI_Avatar/quasar-frontend/src/components/ChatInterface.vue -->
+
 import { defineStore } from 'pinia';
 import { executeGraphQL } from '../graphql/apollo-client';
 import { ASK_QUESTION } from '../graphql/queries';
@@ -40,8 +42,8 @@ export const useChatStore = defineStore('chat', {
         // Make GraphQL mutation call using the executeGraphQL function
         const response = await executeGraphQL(ASK_QUESTION, {
           query: message,
-          k: 3,
-          scoreThreshold: 0.7
+          k: 5,
+          scoreThreshold: 0.2
         });
         
         console.log('GraphQL response:', response);

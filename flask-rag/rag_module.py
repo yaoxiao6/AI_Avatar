@@ -1,4 +1,5 @@
 # AI_Avatar/flask-rag/rag_module.py
+
 from langchain_core.globals import set_verbose, set_debug
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain.schema.output_parser import StrOutputParser
@@ -25,33 +26,40 @@ class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""
 
     def __init__(self, llm_model: str = "deepseek-r1:1.5B", embedding_model: str = "mxbai-embed-large"):
-        # try:
-        #     self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
-        #     # Test the embeddings with a simple string
-        #     # test_embedding = self.embeddings.embed_query("test")
-        #     logger.info("Embedding model initialized successfully")
-        # except Exception as e:
-        #     logger.error(f"Failed to initialize embedding model: {str(e)}")
-        #     raise
-
-        # embeddings = OllamaEmbeddings(model="mxbai-embed-large")
-        # try:
-        #     test_embedding = embeddings.embed_query("test")
-        #     logger.info("Embedding successful!")
-        #     logger.info(f"Embedding dimension: {len(test_embedding)}")
-        # except Exception as e:
-        #     logger.error(f"Failed to embed query: {str(e)}")
-        #     raise
-        
         self.model = ChatOllama(model=llm_model, base_url=OLLAMA_BASE_URL)
         self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
-        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1024, chunk_overlap=100)
+        
+        # Test the embedding model to make sure it's working
+        try:
+            test_embedding = self.embeddings.embed_query("test query")
+            logger.info(f"Embedding test successful! Dimension: {len(test_embedding)}")
+        except Exception as e:
+            logger.error(f"Embedding test failed: {str(e)}")
+            raise
+            
+        # Modified chunk settings for better retrieval
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=512,  # Smaller chunk size
+            chunk_overlap=200  # Larger overlap
+        )
+        
+        # Improved prompt with better context handling
         self.prompt = ChatPromptTemplate.from_template(
             """
-            You are a helpful assistant answering questions based on the uploaded document.
-            Context: {context}
-            Question: {question}
+            You are the representater of Yao, who is applying jobs. 
+            You will answer questions from a recruiter. 
+            You are provided with context information from a PDF document about Yao's resume, work experience, and education.
+            
+            Context information is below:
+            ---------------------
+            {context}
+            ---------------------
+            
+            Given the context information and not prior knowledge, answer the question: {question}
+            
+            If the answer cannot be determined from the context, say "I don't have enough information to answer that based on the document."
             Answer concisely and accurately in three sentences or less.
+            Speak as if you are Yao, the candidate.
             """
         )
         self.vector_store = None
@@ -65,9 +73,10 @@ class ChatPDF:
             docs = PyPDFLoader(file_path=pdf_file_path).load()
             chunks = self.text_splitter.split_documents(docs)
             chunks = filter_complex_metadata(chunks)
-            # print(f"Number of chunks: {len(chunks)}")
-            # print(f"Example chunk: {chunks[0]}")
-            logger.info(f"rag_module -> function ingest -> self.embeddings: {self.embeddings}")
+            
+            logger.info(f"Created {len(chunks)} chunks from document")
+            logger.info(f"Example chunk content: {chunks[0].page_content[:100]}...")
+            
             self.vector_store = Chroma.from_documents(
                 documents=chunks,
                 embedding=self.embeddings,
@@ -79,7 +88,7 @@ class ChatPDF:
             logger.info(f"Vector store size: {collection_size} documents")
 
             logger.info("Ingestion in rag_module completed successfully")
-            return {"status": "success", "message": "Document ingested successfully"}
+            return {"status": "success", "message": f"Document ingested successfully. Created {len(chunks)} chunks."}
         except Exception as e:
             logger.error(f"Error during ingestion: {str(e)}")
             return {"status": "error", "message": str(e)}
@@ -90,19 +99,30 @@ class ChatPDF:
             if not self.vector_store:
                 raise ValueError("No vector store found. Please ingest a document first.")
 
-            if not self.retriever:
-                self.retriever = self.vector_store.as_retriever(
-                    search_type="similarity_score_threshold",
-                    search_kwargs={"k": k, "score_threshold": score_threshold},
-                )
+            # Create a new retriever with updated parameters each time
+            self.retriever = self.vector_store.as_retriever(
+                search_type="similarity_score_threshold",
+                search_kwargs={"k": k, "score_threshold": score_threshold},
+            )
 
             logger.info(f"Retrieving context for query: {query}")
+            logger.info(f"Using retrieval parameters: k={k}, score_threshold={score_threshold}")
+            
             retrieved_docs = self.retriever.invoke(query)
+            
+            # Log similarity scores for debugging
+            if retrieved_docs:
+                logger.info(f"Retrieved {len(retrieved_docs)} relevant chunks")
+                for i, doc in enumerate(retrieved_docs):
+                    if hasattr(doc, 'metadata') and 'score' in doc.metadata:
+                        logger.info(f"Doc {i} score: {doc.metadata['score']}")
+            else:
+                logger.warning(f"No documents retrieved above threshold {score_threshold}")
 
             if not retrieved_docs:
                 return {
                     "status": "success",
-                    "answer": "No relevant context found in the document to answer your question.",
+                    "answer": "No relevant information found in the document to answer your question.",
                     "metadata": {"context_found": False}
                 }
 

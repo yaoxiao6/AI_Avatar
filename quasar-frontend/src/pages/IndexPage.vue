@@ -244,8 +244,8 @@ export default {
           console.log('STEP 6: Sending query to GraphQL API')
           const response = await executeGraphQL(ASK_QUESTION, {
             query: userMessage,
-            k: 3,
-            scoreThreshold: 0.7
+            k: 5,
+            scoreThreshold: 0.2
           })
 
           console.log('STEP 7: Received GraphQL response:', response)
