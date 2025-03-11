@@ -25,12 +25,11 @@ spec:
         - containerPort: 11434
         resources:
           limits:
+            cpu: "7"
+            memory: "28Gi"
+          requests:
             cpu: "4"
             memory: "16Gi"
-            nvidia.com/gpu: 1
-          requests:
-            cpu: "2"
-            memory: "8Gi"
         env:
         - name: OLLAMA_HOST
           value: "0.0.0.0"
@@ -54,8 +53,7 @@ spec:
           timeoutSeconds: 10
           failureThreshold: 5
           successThreshold: 1
-      nodeSelector:
-        cloud.google.com/gke-accelerator: "nvidia-tesla-t4"
+      # Node selector removed (GPU no longer required)
       volumes:
       - name: ollama-models
         persistentVolumeClaim:

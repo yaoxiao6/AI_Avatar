@@ -49,3 +49,50 @@ docker-compose down --rmi all
 ## Deploy / Re-deploy to GCP from local terminal 
 1. Turn on the Docker software
 2. `sh ./deploy_GCP_from_local.sh`
+
+## Deploy Ollama server onto GKE. 
+Since the Ollama is consistent and hardly udpate, we will deploy via YAML and terminal manually. Not Terraform (which update each time with changes on backend code). 
+
+Before deploy, make sure you installed `gcloud` and `kubectl`
+```
+# Install gcloud CLI if you haven't already
+curl https://sdk.cloud.google.com | bash
+gcloud init
+
+# Install kubectl
+gcloud components install kubectl
+```
+
+Assume ollama Docker image is stored in Google Container Registry (GCR)
+
+Then, we do 
+```
+cd terraform/k8s/
+
+# Set your preferred region and zone
+gcloud config set compute/region us-central1
+gcloud config set compute/zone us-central1-a
+
+# Create a GKE cluster
+gcloud container clusters create ollama-cluster \
+  --num-nodes=1 \
+  --machine-type=e2-standard-8 \
+  --disk-size=100
+
+gcloud container clusters get-credentials ollama-cluster
+
+kubectl apply -f ollama-deployment.yaml
+```
+
+Finally, we wait a while and validate deployment
+```
+# Check deployment status
+kubectl get deployments
+
+# Check pod status
+kubectl get pods
+
+# Check service (this will show your external IP)
+kubectl get services ollama-service
+```
+

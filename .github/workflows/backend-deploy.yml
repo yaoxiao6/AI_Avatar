@@ -54,12 +54,12 @@ jobs:
         docker push gcr.io/$PROJECT_ID/node-backend:latest
         cd ..
 
-    - name: Build and Push Ollama Docker Image
-      run: |
-        cd ollama-server
-        docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
-        docker push gcr.io/$PROJECT_ID/ollama:latest
-        cd ..
+    # - name: Build and Push Ollama Docker Image # It hardly update. Prefer do it manually
+    #   run: |
+    #     cd ollama-server
+    #     docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
+    #     docker push gcr.io/$PROJECT_ID/ollama:latest
+    #     cd ..
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
