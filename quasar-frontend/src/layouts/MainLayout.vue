@@ -6,7 +6,7 @@
           <q-avatar>
             <img src="~assets/your-profile.jpg">
           </q-avatar>
-          Yao Xiao
+          Yao Xiao (Beta Version, Still under development)
         </q-toolbar-title>
       </q-toolbar>
     </q-header>
