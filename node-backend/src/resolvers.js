@@ -57,25 +57,28 @@ const resolvers = {
 
                 // Extract only the real response by removing the <think>...</think> part
                 const responseData = response.data;
-                let processedResponse = responseData;
 
-                // Check if the response contains the think tags
-                if (typeof responseData.status === 'string' && responseData.status.includes('<think>')) {
-                    // Use regex to remove everything between and including <think></think>
-                    processedResponse = {
-                        ...responseData,
-                        status: responseData.status.replace(/<think>[\s\S]*?<\/think>\s*/, '')
-                    };
+                console.log('Before cleaning Response answer:', responseData.answer);
+
+                // Clean the answer field if it contains <think> tags
+                if (responseData.answer && typeof responseData.answer === 'string' && responseData.answer.includes('<think>')) {
+                    // Use regex to remove everything between and including <think></think> tags
+                    responseData.answer = responseData.answer.replace(/<think>[\s\S]*?<\/think>\s*/, '');
+                    
+                    // Trim any leading/trailing whitespace
+                    responseData.answer = responseData.answer.trim();
                 }
+
+                console.log('After cleaning Response answer:', responseData.answer);
 
                 const duration = Date.now() - startTime;
                 logger.info('Question processing completed', {
                     query,
                     duration,
-                    responseStatus: processedResponse.status
+                    responseStatus: response.data.status
                 });
 
-                return processedResponse;
+                return responseData;
             } catch (error) {
                 const duration = Date.now() - startTime;
                 

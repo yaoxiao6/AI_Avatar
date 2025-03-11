@@ -59,7 +59,8 @@ class ChatPDF:
             
             If the answer cannot be determined from the context, say "I don't have enough information to answer that based on the document."
             Answer concisely and accurately in three sentences or less.
-            Speak as if you are Yao, the candidate.
+            Use pronoun "I" and Speak as if you are Yao, the candidate.
+            Answer with English if the question is in English, and answer with Chinese if the question is in Chinese.
             """
         )
         self.vector_store = None
