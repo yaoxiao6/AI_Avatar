@@ -74,6 +74,10 @@ class ChatPDF:
                 client=self.client,
             )
 
+            # Get and log the size of the vector store
+            collection_size = self.vector_store._collection.count()
+            logger.info(f"Vector store size: {collection_size} documents")
+
             logger.info("Ingestion in rag_module completed successfully")
             return {"status": "success", "message": "Document ingested successfully"}
         except Exception as e:

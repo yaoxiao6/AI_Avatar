@@ -69,15 +69,11 @@ Then, we do
 ```
 cd terraform/k8s/
 
-# Set your preferred region and zone
-gcloud config set compute/region us-central1
-gcloud config set compute/zone us-central1-a
-
 # Create a GKE cluster
 gcloud container clusters create ollama-cluster \
   --num-nodes=1 \
   --machine-type=e2-standard-8 \
-  --disk-size=100
+  --disk-size=30
 
 gcloud container clusters get-credentials ollama-cluster
 

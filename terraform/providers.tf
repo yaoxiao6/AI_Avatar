@@ -23,7 +23,7 @@ provider "google" {
 
 # Configure Kubernetes provider using GKE cluster
 data "google_container_cluster" "my_cluster" {
-  name     = "ollama" # Replace with your GKE cluster name
+  name     = "ollama-cluster" # Replace with your GKE cluster name
   location = var.region
 }
 
