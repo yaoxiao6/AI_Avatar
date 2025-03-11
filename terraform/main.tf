@@ -26,14 +26,14 @@ resource "google_container_node_pool" "ollama_nodes" {
   # Node configuration
   node_config {
     machine_type = "n1-standard-4"  # 4 vCPUs, 15GB RAM
-    
+
     # Reduce disk size to fit within quota
     disk_size_gb = 100
     disk_type    = "pd-standard"  # Use standard persistent disk instead of SSD
 
     # GPU configuration
     guest_accelerator {
-      type  = "nvidia-l4"
+      type  = "nvidia-l4"  # L4 GPU instead of T4
       count = 1
     }
 
@@ -155,7 +155,7 @@ resource "kubernetes_deployment" "ollama" {
 
         # Node selector to ensure pods are scheduled on GPU nodes
         node_selector = {
-          "cloud.google.com/gke-accelerator" = "nvidia-tesla-t4"
+          "cloud.google.com/gke-accelerator" = "nvidia-l4"
         }
 
         # Volume for model persistence
