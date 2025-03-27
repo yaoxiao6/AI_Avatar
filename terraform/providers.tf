@@ -5,10 +5,6 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 4.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
-    }
   }
   backend "gcs" {
     bucket = "yao-terraform-state-bucket"
@@ -19,21 +15,4 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
-}
-
-
-# I am using Cloud Run named "ollama-rag" now. No longer use the GKE. Please remove or replace with correct provider, AI!
-
-# Configure Kubernetes provider using GKE cluster
-data "google_container_cluster" "my_cluster" {
-  name     = "ollama-cluster" # Replace with your GKE cluster name
-  location = var.region
-}
-
-data "google_client_config" "default" {}
-
-provider "kubernetes" {
-  host                   = "https://${data.google_container_cluster.my_cluster.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(data.google_container_cluster.my_cluster.master_auth[0].cluster_ca_certificate)
 }
