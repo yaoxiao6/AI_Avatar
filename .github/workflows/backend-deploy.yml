@@ -1,6 +1,4 @@
 # AI_Avatar/.github/workflows/backend-deploy.yml
-# Update this file. I no longer deploy ollama in backend-deploy, instead, it has its own yaml file. I want to assume the ollama is only and only deploy the backend flask-rag and node-backend, AI!
-
 name: Deploy Backend Services
 
 on:
@@ -9,7 +7,6 @@ on:
     paths:
       - 'flask-rag/**'
       - 'node-backend/**'
-      - 'ollama-server/**'
       - 'terraform/**'
       - '.github/workflows/backend-deploy.yml'
   workflow_dispatch:  # Allow manual triggers
@@ -56,12 +53,6 @@ jobs:
         docker push gcr.io/$PROJECT_ID/node-backend:latest
         cd ..
 
-    # - name: Build and Push Ollama Docker Image # It hardly update. Prefer do it manually
-    #   run: |
-    #     cd ollama-server
-    #     docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/ollama:latest .
-    #     docker push gcr.io/$PROJECT_ID/ollama:latest
-    #     cd ..
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v2
@@ -84,9 +75,6 @@ jobs:
         # Handle App Engine application in state
         terraform state list | grep -q "google_app_engine_application.app" && terraform state rm google_app_engine_application.app || true
         
-        # If migrating from Cloud Run to GKE, remove old Cloud Run service
-        terraform state list | grep -q "google_cloud_run_service.ollama" && terraform state rm google_cloud_run_service.ollama || true
-        terraform state list | grep -q "google_cloud_run_service_iam_policy.ollama_noauth" && terraform state rm google_cloud_run_service_iam_policy.ollama_noauth || true
         
         # Taint Cloud Run services to force recreation
         terraform taint google_cloud_run_service.flask_rag || true
@@ -94,17 +82,9 @@ jobs:
         
         terraform apply -auto-approve
     
-    - name: Verify GKE Deployment
+    - name: Verify Deployment
       run: |
-        # Get GKE cluster credentials
-        gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $REGION --project $PROJECT_ID
-        
-        # Check Ollama pod status
-        kubectl get pods -l app=ollama
-        
-        # Check if service is available
-        kubectl get service ollama-service
-        
-        # Output Ollama External IP
-        echo "Ollama Service External IP: $(cd terraform && terraform output -raw ollama_external_ip)"
+        # Output service URLs
+        echo "Flask RAG URL: $(cd terraform && terraform output -raw flask_rag_url)"
+        echo "Node Backend URL: $(cd terraform && terraform output -raw node_backend_url)"
 
