@@ -25,7 +25,7 @@ OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', f"http://ollama-server:11434")  #
 class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""
 
-    def __init__(self, llm_model: str = "deepseek-r1:1.5B", embedding_model: str = "mxbai-embed-large"):
+    def __init__(self, llm_model: str = "deepseek-r1:8B", embedding_model: str = "mxbai-embed-large"):
         self.model = ChatOllama(model=llm_model, base_url=OLLAMA_BASE_URL)
         self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
         
