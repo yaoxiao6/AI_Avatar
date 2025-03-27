@@ -21,6 +21,9 @@ provider "google" {
   region  = var.region
 }
 
+
+# I am using Cloud Run named "ollama-rag" now. No longer use the GKE. Please remove or replace with correct provider, AI!
+
 # Configure Kubernetes provider using GKE cluster
 data "google_container_cluster" "my_cluster" {
   name     = "ollama-cluster" # Replace with your GKE cluster name
