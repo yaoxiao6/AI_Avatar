@@ -1,15 +1,9 @@
 # AI_Avatar/terraform/main.tf
 
-# I was deploying my ollama on kubernetes_service. However, Now, I have an GCP Cloud Run service "ollama-rag". I want my flask-rag service to use the external IP of the "ollama-rag" service. Help me do it. AI!
-# Data source to get external IP of the Ollama service
-data "kubernetes_service" "ollama" {
-  metadata {
-    name      = "ollama-service"
-    namespace = "default"
-  }
-  depends_on = [
-    data.google_container_cluster.my_cluster
-  ]
+# Data source to get the URL of the ollama-rag Cloud Run service
+data "google_cloud_run_service" "ollama_rag" {
+  name     = "ollama-rag"
+  location = var.region
 }
 
 # flask-rag service without startup_probe
@@ -36,7 +30,7 @@ resource "google_cloud_run_service" "flask_rag" {
 
         env {
           name  = "OLLAMA_BASE_URL"
-          value = "http://${data.kubernetes_service.ollama.status.0.load_balancer.0.ingress.0.ip}"
+          value = data.google_cloud_run_service.ollama_rag.status[0].url
         }
       }
 
