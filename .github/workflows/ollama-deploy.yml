@@ -10,9 +10,9 @@ on:
 env:
   PROJECT_ID: ai-avatar-451519
   REGION: us-central1
-  SERVICE_NAME: ollama-gemma
+  SERVICE_NAME: ollama-rag
   REPOSITORY: ollama-repo
-  IMAGE_NAME: ollama-gemma
+  IMAGE_NAME: ollama-rag
 
 jobs:
   deploy:
