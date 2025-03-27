@@ -35,7 +35,8 @@ jobs:
       
     - name: Build and push with Cloud Build
       run: |
-        gcloud builds submit ./ollama-server \
+        cd ./ollama-server
+        gcloud builds submit \
           --tag ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.IMAGE_NAME }}:latest \
           --machine-type e2-highcpu-32
         
