@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'ollama-server/**'
+      - '.github/workflows/ollama-deploy.yml'
   workflow_dispatch:
 
 env:
