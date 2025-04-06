@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import logging
 import chromadb
 import os
+from storage_utils import CloudStorageManager
 
 set_debug(True)
 set_verbose(True)
@@ -22,12 +23,28 @@ logger = logging.getLogger(__name__)
 # Get Ollama host and port from environment variables
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', f"http://ollama-server:11434")  # defaults to 'http://ollama-server:11434' if not set
 
+# Get GCS bucket name from environment variables
+GCS_BUCKET_NAME = os.getenv('GCS_BUCKET_NAME', 'ai-avatar-chroma-db')
+
+# Local path for ChromaDB
+CHROMA_DB_PATH = os.getenv('CHROMA_DB_PATH', 'chroma_db')
+
 class ChatPDF:
     """A class for handling PDF ingestion and question answering using RAG."""
 
     def __init__(self, llm_model: str = "deepseek-r1:8B", embedding_model: str = "mxbai-embed-large"):
         self.model = ChatOllama(model=llm_model, base_url=OLLAMA_BASE_URL)
         self.embeddings = OllamaEmbeddings(model=embedding_model, base_url=OLLAMA_BASE_URL)
+        
+        # Initialize the Cloud Storage manager
+        self.storage_manager = CloudStorageManager(bucket_name=GCS_BUCKET_NAME, local_path=CHROMA_DB_PATH)
+        
+        # Try to restore from Cloud Storage
+        try:
+            logger.info("Attempting to restore Chroma DB from Cloud Storage")
+            self.storage_manager.download_from_cloud()
+        except Exception as e:
+            logger.warning(f"Could not restore from Cloud Storage: {str(e)}")
         
         # Test the embedding model to make sure it's working
         try:
@@ -65,7 +82,7 @@ class ChatPDF:
         )
         self.vector_store = None
         self.retriever = None
-        self.client = chromadb.PersistentClient(path="chroma_db")
+        self.client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
 
     def ingest(self, pdf_file_path: str) -> dict:
         """Ingest a PDF file and return status"""
@@ -87,6 +104,14 @@ class ChatPDF:
             # Get and log the size of the vector store
             collection_size = self.vector_store._collection.count()
             logger.info(f"Vector store size: {collection_size} documents")
+            
+            # Backup to Cloud Storage
+            logger.info("Backing up Chroma DB to Cloud Storage")
+            upload_success = self.storage_manager.upload_to_cloud()
+            if upload_success:
+                logger.info("Successfully backed up to Cloud Storage")
+            else:
+                logger.warning("Failed to backup to Cloud Storage")
 
             logger.info("Ingestion in rag_module completed successfully")
             return {"status": "success", "message": f"Document ingested successfully. Created {len(chunks)} chunks."}
