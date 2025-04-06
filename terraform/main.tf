@@ -96,6 +96,8 @@ resource "google_storage_bucket_iam_member" "flask_rag_sa_storage_admin" {
   member = "serviceAccount:${google_service_account.flask_rag_sa.email}"
 }
 
+# We're using PostgreSQL for contact storage, so GCS bucket is not needed
+
 # Cloud Run service for Node.js backend
 resource "google_cloud_run_service" "node_backend" {
   name     = "node-backend"
@@ -115,7 +117,41 @@ resource "google_cloud_run_service" "node_backend" {
           name  = "FLASK_RAG_URL"
           value = google_cloud_run_service.flask_rag.status[0].url
         }
+        
+        # Add database configuration
+        env {
+          name  = "DB_HOST"
+          value = "cloud-run-postgres-instance"
+        }
+        
+        env {
+          name  = "DB_PORT"
+          value = "5432"
+        }
+        
+        env {
+          name  = "DB_NAME"
+          value = "ai_avatar_db"
+        }
+        
+        env {
+          name  = "DB_USER"
+          value = "ai_avatar_user"
+        }
+        
+        env {
+          name  = "DB_PASSWORD"
+          value = "HiGcp1004!"  # In production, use secret manager
+        }
+        
+        env {
+          name  = "DB_SSL"
+          value = "true"
+        }
       }
+      
+      # Service account for the Cloud Run service
+      service_account_name = google_service_account.node_backend_sa.email
     }
   }
 
@@ -123,7 +159,17 @@ resource "google_cloud_run_service" "node_backend" {
     percent         = 100
     latest_revision = true
   }
+  
+  # No specific dependencies needed
 }
+
+# Create a service account for the Node.js backend
+resource "google_service_account" "node_backend_sa" {
+  account_id   = "node-backend-sa"
+  display_name = "Service Account for Node Backend"
+}
+
+# We're using PostgreSQL for contact storage, no GCP storage IAM needed
 
 # IAM policy to make services public
 data "google_iam_policy" "noauth" {

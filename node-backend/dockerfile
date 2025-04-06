@@ -15,6 +15,9 @@ RUN npm ci
 # Copy source code
 COPY src/ ./src/
 
+# Create data directory for contacts
+RUN mkdir -p ./data/contacts
+
 # Set environment to production
 ENV NODE_ENV=production
 

@@ -6,6 +6,7 @@ const fs = require('fs');
 const { createWriteStream } = require('fs');
 const { finished } = require('stream/promises');
 const logger = require('./utils/logger');
+const db = require('./utils/db');
 
 const resolvers = {
     Query: {
@@ -32,6 +33,39 @@ const resolvers = {
                     config: error.config
                 });
                 return { status: 'unhealthy' };
+            }
+        },
+        getContacts: async () => {
+            try {
+                logger.info('Fetching all contacts');
+                const contacts = await db.getContacts();
+                logger.info(`Retrieved ${contacts.length} contacts`);
+                return contacts;
+            } catch (error) {
+                logger.error('Error retrieving contacts', {
+                    error: error.message,
+                    stack: error.stack
+                });
+                throw new Error('Failed to retrieve contacts');
+            }
+        },
+        getContact: async (_, { id }) => {
+            try {
+                logger.info(`Fetching contact with ID: ${id}`);
+                const contact = await db.getContactById(id);
+                
+                if (!contact) {
+                    logger.warn(`No contact found with ID: ${id}`);
+                    throw new Error(`Contact with ID ${id} not found`);
+                }
+                
+                return contact;
+            } catch (error) {
+                logger.error(`Error retrieving contact with ID: ${id}`, {
+                    error: error.message,
+                    stack: error.stack
+                });
+                throw new Error('Failed to retrieve contact');
             }
         }
     },
@@ -124,6 +158,48 @@ const resolvers = {
                 return {
                     status: 'error',
                     message: error.message || 'Error clearing vector store'
+                };
+            }
+        },
+        
+        submitContact: async (_, { input }) => {
+            const startTime = Date.now();
+            try {
+                logger.info('Processing contact form submission', {
+                    name: input.name,
+                    email: input.email
+                });
+                
+                // Save contact to PostgreSQL database
+                const savedContact = await db.saveContact(input);
+                
+                const duration = Date.now() - startTime;
+                logger.info('Contact form submission saved successfully to database', {
+                    name: input.name,
+                    email: input.email,
+                    id: savedContact.id,
+                    duration
+                });
+                
+                // You could also send an email notification here
+                // or integrate with a CRM system
+                
+                return {
+                    status: 'success',
+                    message: 'Contact form submitted successfully'
+                };
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                logger.error('Error processing contact form', {
+                    error: error.message,
+                    stack: error.stack,
+                    duration,
+                    input
+                });
+                
+                return {
+                    status: 'error',
+                    message: error.message || 'Error processing contact form'
                 };
             }
         }

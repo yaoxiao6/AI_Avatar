@@ -306,13 +306,39 @@ export default {
       }
     }
 
-    const onSubmit = () => {
-      // Here you would typically send the form data to your backend
-      // For now, we'll just show the success message
-      submitted.value = true;
-      
-      // You can connect this to axios or apollo client to send the data
-      console.log('Form submitted:', formData.value);
+    const onSubmit = async () => {
+      try {
+        // Import the contact store dynamically to prevent circular dependencies
+        const { useContactStore } = await import('../stores/contact-store');
+        const contactStore = useContactStore();
+        
+        console.log('Submitting form via contact store:', formData.value);
+        
+        // Submit the form using the store
+        const success = await contactStore.submitContactForm(formData.value);
+        
+        if (success) {
+          submitted.value = true;
+          $q.notify({
+            type: 'positive',
+            message: 'Thank you for your message! We\'ll get back to you soon.',
+            position: 'top'
+          });
+        } else {
+          $q.notify({
+            type: 'negative',
+            message: contactStore.error || 'Failed to submit contact form. Please try again.',
+            position: 'top'
+          });
+        }
+      } catch (error) {
+        console.error('Error in contact form submission:', error);
+        $q.notify({
+          type: 'negative',
+          message: 'An error occurred while submitting the form. Please try again.',
+          position: 'top'
+        });
+      }
     }
 
     return {

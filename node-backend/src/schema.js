@@ -5,6 +5,8 @@ const typeDefs = `
   type Query {
     health: String
     pythonServiceHealth: PythonHealthResponse!
+    getContacts: [Contact]
+    getContact(id: ID!): Contact
   }
 
   type PythonHealthResponse {
@@ -14,6 +16,30 @@ const typeDefs = `
   type Mutation {
     askQuestion(query: String!, k: Int, scoreThreshold: Float): AskResponse!
     clearVectorStore: ClearResponse!
+    submitContact(input: ContactInput!): ContactResponse!
+  }
+
+  input ContactInput {
+    name: String!
+    company: String
+    email: String!
+    phone: String
+    note: String
+  }
+
+  type Contact {
+    id: ID!
+    name: String!
+    company: String
+    email: String!
+    phone: String
+    note: String
+    created_at: String
+  }
+
+  type ContactResponse {
+    status: String!
+    message: String
   }
 
   type AskResponse {
