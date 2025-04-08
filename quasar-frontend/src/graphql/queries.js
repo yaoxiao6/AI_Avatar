@@ -8,20 +8,17 @@ export const HEALTH_QUERY = gql`
   }
 `
 
+// STEP 1: First, make sure your queries.js file correctly exports the gql tagged query
 export const ASK_FIREBASE = gql`
   mutation AskFirebase($query: String!, $limit: Int) {
     askFirebase(query: $query, limit: $limit) {
       status
       answer
       message
-      sources {
-        content
-        filename
-        score
-      }
     }
   }
 `
+
 
 export const CLEAR_STORE = gql`
   mutation ClearStore {

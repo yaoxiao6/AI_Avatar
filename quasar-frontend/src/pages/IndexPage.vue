@@ -39,9 +39,10 @@
                     <template v-slot:stamp>{{ message.timestamp }}</template>
                   </q-chat-message>
 
-                  <q-chat-message v-else :text="[message.content]" bg-color="grey-3">
+                  <q-chat-message v-else bg-color="grey-3">
                     <template v-slot:name>Yao</template>
                     <template v-slot:stamp>{{ message.timestamp }}</template>
+                    <div v-html="formatThinkContent(message.content)"></div>
                   </q-chat-message>
                 </template>
               </div>
@@ -169,6 +170,28 @@ export default {
         minute: '2-digit',
       })
     }
+    
+    const formatThinkContent = (content) => {
+      if (!content) return '';
+      
+      // Check if the content contains <think> tags
+      if (content.includes('<think>') && content.includes('</think>')) {
+        // Extract think content and main content using regex
+        const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>\s*([\s\S]*)/);
+        
+        if (thinkMatch) {
+          const thinkContent = thinkMatch[1];
+          const mainContent = thinkMatch[2] || '';
+          
+          // Return formatted HTML with think content in grey and main content in black
+          return `<span style="color: #9e9e9e; font-style: italic;">&lt;think&gt;${thinkContent}&lt;/think&gt;</span>
+                  <span style="color: black;">${mainContent}</span>`;
+        }
+      }
+      
+      // If no <think> tags or match fails, return original content
+      return content;
+    }
 
     const scrollToBottom = async () => {
       try {
@@ -224,11 +247,11 @@ export default {
           console.log('STEP 5: Sending query to GraphQL API')
           const response = await executeGraphQL(ASK_FIREBASE, {
             query: userMessage,
+            // limit: 5  // Adding a limit parameter (optional, adjust as needed)
           })
 
           console.log('STEP 6: Received GraphQL response:', response)
 
-          // Add bot response
           if (response?.data?.askFirebase?.status === 'success') {
             console.log('STEP 7: Adding successful bot response')
             messages.value.push({
@@ -237,14 +260,15 @@ export default {
               timestamp: formatTimestamp(),
             })
 
-            // Log retrieval metadata if available
-            if (response.data.askFirebase.metadata) {
-              console.log('Retrieval metadata:', response.data.askFirebase.metadata)
+            // Log retrieval sources if available
+            if (response.data.askFirebase.sources) {
+              console.log('Retrieval sources:', response.data.askFirebase.sources)
             }
           } else {
             console.error('STEP 8: Bot response indicates failure')
             throw new Error(response?.data?.askFirebase?.message || 'Unknown GraphQL error')
           }
+
         } catch (graphqlError) {
           console.error('GraphQL Error:', graphqlError)
           console.log('STEP FALLBACK: Using fallback response due to GraphQL error')
@@ -329,6 +353,7 @@ export default {
       formData,
       submitted,
       onSubmit,
+      formatThinkContent,
     }
   },
 }
