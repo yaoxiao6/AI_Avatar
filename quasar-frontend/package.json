@@ -1,9 +1,9 @@
 {
   "name": "quasar-frontend",
   "version": "0.0.1",
-  "description": "The frontend for Yao's personal project AI_Avatar",
-  "productName": "Quasar App",
-  "author": "Yao Xiao <yao.xiao@symtrain.com>",
+  "description": "AI chatbot. Representation of Yao Xiao. Speak to Recruiters.",
+  "productName": "Yao's AI Avatar",
+  "author": "Yao Xiao <xy1360686461@gmail.com>",
   "type": "module",
   "private": true,
   "scripts": {
