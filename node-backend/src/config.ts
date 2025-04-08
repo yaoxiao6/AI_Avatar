@@ -16,7 +16,7 @@ const config: AppConfig = {
     DB_SSL: process.env.DB_SSL || 'false',
     
     // Ollama configuration
-    OLLAMA_SERVER_ADDRESS: process.env.OLLAMA_SERVER_ADDRESS || 'https://node-backend-579795762739.us-central1.run.app',
+    OLLAMA_SERVER_ADDRESS: process.env.OLLAMA_SERVER_ADDRESS || 'https://ollama-rag-579795762739.us-central1.run.app',
     OLLAMA_API_KEY: process.env.OLLAMA_API_KEY
 };
 

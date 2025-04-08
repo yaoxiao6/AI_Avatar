@@ -1,5 +1,6 @@
 // src/services/ollama.ts
 import { genkit, Genkit } from 'genkit';
+import { ollama } from 'genkitx-ollama';
 import logger from '../utils/logger';
 import config from '../config';
 
@@ -20,13 +21,13 @@ export interface EmbeddingResponse {
 }
 
 class OllamaService {
-  private ai: Genkit;
+  private ai!: Genkit; // Add definite assignment assertion operator
   private isInitialized: boolean = false;
   private config: OllamaServiceConfig;
 
   constructor() {
     this.config = {
-      serverAddress: config.OLLAMA_SERVER_ADDRESS || 'https://node-backend-579795762739.us-central1.run.app',
+      serverAddress: config.OLLAMA_SERVER_ADDRESS,
       apiKey: config.OLLAMA_API_KEY
     };
     
@@ -38,13 +39,12 @@ class OllamaService {
       // Initialize genkit with Ollama plugin
       this.ai = genkit({
         plugins: [
-          {
-            type: 'ollama',
+          ollama({
             models: [{ name: 'deepseek-r1:8B' }],
             embedders: [{ name: 'mxbai-embed-large', dimensions: 768 }],
             requestHeaders: this.config.apiKey ? { 'api-key': this.config.apiKey } : undefined,
             serverAddress: this.config.serverAddress,
-          },
+          })
         ],
       });
       
@@ -79,6 +79,7 @@ class OllamaService {
       const response = await this.ai.generate({
         model: 'ollama/deepseek-r1:8B',
         prompt: prompt,
+        // Add any other parameters that might be needed by genkit
       });
       
       const duration = Date.now() - startTime;
@@ -137,25 +138,29 @@ class OllamaService {
 
   /**
    * Check if the Ollama service is healthy
-   * @returns Promise with health status
+   * @returns Promise with health status response
    */
-  async healthCheck(): Promise<boolean> {
+  async healthCheck(): Promise<string> {
     try {
       if (!this.isInitialized) {
         this.init();
       }
       
-      // Simple health check - try to generate a tiny response
-      await this.ai.generate({
-        model: 'ollama/deepseek-r1:8B',
-        prompt: 'hi',
-        maxTokens: 1
+      // Send a direct GET request to the Ollama server
+      const axios = require('axios');
+      const response = await axios.get(this.config.serverAddress);
+      
+      // Log the response for debugging
+      logger.info('Ollama health check response:', { 
+        data: response.data,
+        status: response.status 
       });
       
-      return true;
+      // Return the raw string response
+      return response.data;
     } catch (error) {
       logger.error('Ollama health check failed', error);
-      return false;
+      return 'Error: Ollama health check failed';
     }
   }
 }

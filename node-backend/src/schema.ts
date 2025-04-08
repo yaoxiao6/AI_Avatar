@@ -17,6 +17,7 @@ const typeDefs = `
 
   type OllamaHealthResponse {
     status: String!
+    response: String
   }
 
   type Mutation {

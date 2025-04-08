@@ -56,6 +56,7 @@ export interface ClearResponse {
 // Ollama service related types
 export interface OllamaHealthResponse {
   status: string;
+  response?: string;
 }
 
 export interface OllamaResponse {

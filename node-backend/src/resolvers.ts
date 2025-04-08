@@ -72,14 +72,14 @@ const resolvers = {
     ollamaHealth: async (): Promise<OllamaHealthResponse> => {
       try {
         logger.info('Checking Ollama service health');
-        const isHealthy = await ollamaService.healthCheck();
+        const response = await ollamaService.healthCheck();
         
-        if (isHealthy) {
+        if (response === 'Ollama is running') {
           logger.info('Ollama service health check successful');
-          return { status: 'healthy' };
+          return { status: 'healthy', response };
         } else {
-          logger.warn('Ollama service is unhealthy');
-          return { status: 'unhealthy' };
+          logger.warn('Ollama service returned unexpected response', { response });
+          return { status: 'unhealthy', response };
         }
       } catch (error) {
         const err = error as Error;
@@ -87,7 +87,7 @@ const resolvers = {
           error: err.message,
           stack: err.stack
         });
-        return { status: 'unhealthy' };
+        return { status: 'unhealthy', response: err.message };
       }
     },
     
