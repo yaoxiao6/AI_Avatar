@@ -72,10 +72,11 @@ app.post('/api/ingest', upload.single('pdf'), async (req: Request, res: Response
     // Check if file was provided
     if (!req.file) {
       logger.warn('No PDF file provided for ingestion');
-      return res.status(400).json({
+      res.status(400).json({
         status: 'error',
         message: 'No PDF file provided'
       });
+      return;
     }
     
     // Get filename and buffer
@@ -97,7 +98,7 @@ app.post('/api/ingest', upload.single('pdf'), async (req: Request, res: Response
       duration
     });
     
-    return res.status(200).json({
+    res.status(200).json({
       status: 'success',
       message: `Successfully processed ${filename}`,
       count: result.count
@@ -109,7 +110,7 @@ app.post('/api/ingest', upload.single('pdf'), async (req: Request, res: Response
       stack: err.stack
     });
     
-    return res.status(500).json({
+    res.status(500).json({
       status: 'error',
       message: err.message || 'Error processing PDF file'
     });
@@ -118,7 +119,7 @@ app.post('/api/ingest', upload.single('pdf'), async (req: Request, res: Response
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
-  return res.status(200).json({
+  res.status(200).json({
     status: 'healthy',
     message: 'Server is running'
   });

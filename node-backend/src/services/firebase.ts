@@ -14,11 +14,16 @@ const FIREBASE_COLLECTION = 'documents';
 const CONTENT_FIELD = 'text';
 const VECTOR_FIELD = 'embedding';
 
+// Chunking configuration - align with Python settings
+const CHUNK_SIZE = 512;
+const CHUNK_OVERLAP = 200;
+
 class FirebaseService {
   private ai!: Genkit;
   private firestore: any;
   private isInitialized: boolean = false;
   private retriever: any;
+  private embeddingModel: string = 'mxbai-embed-large';
 
   constructor() {
     this.init();
@@ -45,30 +50,87 @@ class FirebaseService {
       // Initialize genkit with Firebase
       this.ai = genkit({});
 
-      // Define Firestore retriever
+      // Define a custom embedder function that uses the Ollama service
+      const customEmbedder = this.ai.defineEmbedder({
+        name: 'ollamaEmbedder',
+        info: {
+          dimensions: 4096, // Replace with the actual dimensions of your embeddings if known
+        }
+      }, async (input) => {
+        // Check if input is an array of documents
+        if (!Array.isArray(input)) {
+          throw new Error('Input must be an array of documents');
+        }
+        
+        const embeddings = [];
+        
+        // Process each document in the input array
+        for (const doc of input) {
+          // Extract text from the document
+          const text = typeof doc === 'string' ? doc : (doc.text || '');
+          
+          logger.debug('Generating embedding for document', { 
+            textLength: text.length,
+            embeddingModel: this.embeddingModel 
+          });
+          
+          // Generate embedding for this document
+          const embeddingResponse = await ollamaService.generateEmbedding(text);
+          
+          // Add to embeddings array with the required structure
+          embeddings.push({
+            embedding: embeddingResponse.embedding,
+            metadata: {
+              model: this.embeddingModel,
+              length: text.length
+            }
+          });
+        }
+        
+        // Return with the expected structure
+        return {
+          embeddings: embeddings
+        };
+      });
+
+      // Define Firestore retriever with the custom embedder
       this.retriever = defineFirestoreRetriever(this.ai, {
         name: 'firebaseRetriever',
         firestore: this.firestore,
         collection: FIREBASE_COLLECTION,
         contentField: CONTENT_FIELD,
         vectorField: VECTOR_FIELD,
-        embedder: {
-          embed: async (content: string) => {
-            const embeddingResponse = await ollamaService.generateEmbedding(content);
-            return [{ embedding: embeddingResponse.embedding }];
-          }
-        },
+        embedder: customEmbedder,
         distanceMeasure: 'COSINE',
       });
 
       this.isInitialized = true;
       logger.info('Firebase service initialized successfully', {
         projectId: config.FIREBASE_PROJECT_ID,
-        collection: FIREBASE_COLLECTION
+        collection: FIREBASE_COLLECTION,
+        embeddingModel: this.embeddingModel
       });
+      
+      // Test the embedding functionality
+      this.testEmbedding();
     } catch (error) {
       logger.error('Failed to initialize Firebase service', error);
       this.isInitialized = false;
+    }
+  }
+  
+  /**
+   * Test embedding functionality
+   */
+  private async testEmbedding(): Promise<void> {
+    try {
+      const testEmbedding = await ollamaService.generateEmbedding("test query");
+      logger.info('Embedding test successful!', { 
+        dimensions: testEmbedding.embedding.length,
+        model: testEmbedding.model
+      });
+    } catch (error) {
+      logger.error('Embedding test failed', error);
     }
   }
 
@@ -90,6 +152,10 @@ class FirebaseService {
         collection: FIREBASE_COLLECTION,
         empty: snapshot.empty
       });
+      
+      // Also test the embedding functionality
+      await this.testEmbedding();
+      
       return true;
     } catch (error) {
       logger.error('Firebase health check failed', error);
@@ -111,15 +177,24 @@ class FirebaseService {
     }
 
     try {
-      logger.info('Starting PDF ingestion', { filename });
+      logger.info('Starting PDF ingestion', { 
+        filename, 
+        chunkSize: CHUNK_SIZE,
+        chunkOverlap: CHUNK_OVERLAP
+      });
       const startTime = Date.now();
 
       // Extract text from PDF
       const data = await pdf(pdfBuffer);
       const pdfText = data.text;
       
-      // Divide the PDF text into segments
-      const chunks = await chunk(pdfText);
+      // Using the correct properties according to the SplitOptions type
+      const chunks = chunk(pdfText, {
+        maxLength: CHUNK_SIZE,   // Maximum length of each chunk
+        overlap: CHUNK_OVERLAP,  // Overlap between chunks
+        splitter: "paragraph"    // Split by paragraph (or "sentence" if preferred)
+      });
+      
       logger.info('PDF chunked successfully', { 
         chunkCount: chunks.length,
         totalLength: pdfText.length
@@ -139,13 +214,23 @@ class FirebaseService {
           createdAt: FieldValue.serverTimestamp()
         });
         addedCount++;
+        
+        // Log progress for every 10 chunks
+        if (addedCount % 10 === 0) {
+          logger.info('PDF ingestion progress', {
+            chunksProcessed: addedCount,
+            totalChunks: chunks.length,
+            percentComplete: Math.round((addedCount / chunks.length) * 100)
+          });
+        }
       }
 
       const duration = Date.now() - startTime;
       logger.info('PDF ingestion completed', {
         filename,
         chunksAdded: addedCount,
-        duration
+        duration,
+        averageTimePerChunk: duration / addedCount
       });
 
       return {
@@ -172,7 +257,11 @@ class FirebaseService {
     }
 
     try {
-      logger.info('Querying documents with RAG', { query, limit });
+      logger.info('Querying documents with RAG', { 
+        query, 
+        limit,
+        embeddingModel: this.embeddingModel
+      });
       const startTime = Date.now();
 
       // Retrieve documents using the defined retriever
@@ -230,16 +319,24 @@ class FirebaseService {
       // Create context from retrieved documents
       const context = docs.map(doc => doc.content).join('\n\n');
       
-      // Generate answer using Ollama
+      // Generate answer using Ollama - improved prompt similar to Python version
       const prompt = `
-      Answer the following question based on the context provided below. If the context does not contain the answer, say "I don't have enough information to answer that question."
+      You are the representative of Yao, who is applying for jobs. 
+      You will answer questions from a recruiter.
+      You are provided with context information from a PDF document about Yao's resume, work experience, and education.
       
-      Context:
+      Context information is below:
+      ---------------------
       ${context}
+      ---------------------
       
-      Question: ${question}
+      Given the context information and not prior knowledge, answer the question: ${question}
       
-      Answer:`;
+      If the answer cannot be determined from the context, say "I don't have enough information to answer that based on the document."
+      Answer concisely and accurately in three sentences or less.
+      Use pronoun "I" and speak as if you are Yao, the candidate.
+      Answer with English if the question is in English, and answer with Chinese if the question is in Chinese.
+      `;
       
       const response = await ollamaService.generateText(prompt);
       
