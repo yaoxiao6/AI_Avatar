@@ -1,4 +1,4 @@
-# AI_Avatar/node-backend/dockerfile
+# AI_Avatar/node-backend/Dockerfile
 
 # Use Node.js slim image
 FROM node:20-slim
@@ -12,11 +12,18 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
-# Copy source code
+# Copy TypeScript config and source code
+COPY tsconfig.json ./
 COPY src/ ./src/
+
+# Build TypeScript code
+RUN npm run build
 
 # Create data directory for contacts
 RUN mkdir -p ./data/contacts
+
+# Create logs directory
+RUN mkdir -p ./dist/logs
 
 # Set environment to production
 ENV NODE_ENV=production
@@ -25,4 +32,4 @@ ENV NODE_ENV=production
 # EXPOSE 3000
 
 # Start the application
-CMD ["node", "src/index.js"]
+CMD ["node", "dist/index.js"]
