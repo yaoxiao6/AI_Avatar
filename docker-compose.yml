@@ -15,21 +15,7 @@ services:
     volumes:
       - ollama-data:/root/.ollama  # Persist Ollama models
     
-  flask-rag:
-    build:
-      context: ./flask-rag
-      dockerfile: dockerfile
-    image: ai-avatar/flask-rag:latest
-    ports:
-      - "8080:8080"
-    networks:
-      - ai-network
-    environment:
-      # - OLLAMA_HOST=ollama-server
-      # - OLLAMA_PORT=11434
-      - OLLAMA_BASE_URL=http://ollama-server:11434
-    depends_on:
-      - ollama-server
+  # flask-rag service has been removed
       
   node-backend:
     build:
@@ -41,9 +27,10 @@ services:
     networks:
       - ai-network
     environment:
-      - FLASK_RAG_URL=http://flask-rag:8080
+      - OLLAMA_SERVER_ADDRESS=http://ollama-server:11434
+      - FIREBASE_PROJECT_ID=ai-avatar-451519
     depends_on:
-      - flask-rag
+      - ollama-server
 
 networks:
   ai-network:

@@ -23,12 +23,7 @@ gcloud auth configure-docker
 # Step 3: Build and push Docker images with correct platform
 echo "Building and pushing Docker images..."
 
-# Flask RAG service
-echo "Building Flask RAG service..."
-cd flask-rag
-docker build --platform linux/amd64 -t gcr.io/$PROJECT_ID/flask-rag:latest .
-docker push gcr.io/$PROJECT_ID/flask-rag:latest
-cd ..
+# Flask RAG service has been removed
 
 # Node Backend service
 echo "Building Node Backend service..."
@@ -103,7 +98,6 @@ terraform state list | grep -q "google_app_engine_application.app" && terraform 
 
 # Taint Cloud Run services to force recreation
 echo "Tainting Cloud Run services..."
-terraform taint google_cloud_run_service.flask_rag || true
 terraform taint google_cloud_run_service.node_backend || true
 terraform taint google_cloud_run_service.ollama || true
 

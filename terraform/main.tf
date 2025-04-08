@@ -27,74 +27,7 @@ resource "google_storage_bucket" "chroma_db_bucket" {
   }
 }
 
-# flask-rag service with Cloud Storage integration
-resource "google_cloud_run_service" "flask_rag" {
-  name     = "flask-rag"
-  location = var.region
-
-  template {
-    spec {
-      containers {
-        image = "gcr.io/${var.project_id}/flask-rag:latest"
-
-        # Define the port
-        ports {
-          container_port = 8080
-        }
-
-        resources {
-          limits = {
-            cpu    = "1000m"
-            memory = "1024Mi"  # Increased for ChromaDB operations
-          }
-        }
-
-        env {
-          name  = "OLLAMA_BASE_URL"
-          value = data.google_cloud_run_service.ollama_rag.status[0].url
-        }
-        
-        env {
-          name  = "GCS_BUCKET_NAME"
-          value = google_storage_bucket.chroma_db_bucket.name
-        }
-        
-        env {
-          name  = "CHROMA_DB_PATH"
-          value = "/app/chroma_db"
-        }
-      }
-
-      timeout_seconds = 900
-      
-      # Service account for the Cloud Run service
-      service_account_name = google_service_account.flask_rag_sa.email
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-  
-  # Make sure the bucket is created before the service
-  depends_on = [
-    google_storage_bucket.chroma_db_bucket
-  ]
-}
-
-# Create a service account for the Flask RAG service
-resource "google_service_account" "flask_rag_sa" {
-  account_id   = "flask-rag-sa"
-  display_name = "Service Account for Flask RAG"
-}
-
-# Grant Storage Object Admin role to the service account
-resource "google_storage_bucket_iam_member" "flask_rag_sa_storage_admin" {
-  bucket = google_storage_bucket.chroma_db_bucket.name
-  role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.flask_rag_sa.email}"
-}
+# We no longer need flask-rag service
 
 # We're using PostgreSQL for contact storage, so GCS bucket is not needed
 
@@ -114,8 +47,13 @@ resource "google_cloud_run_service" "node_backend" {
           }
         }
         env {
-          name  = "FLASK_RAG_URL"
-          value = google_cloud_run_service.flask_rag.status[0].url
+          name  = "OLLAMA_SERVER_ADDRESS"
+          value = data.google_cloud_run_service.ollama_rag.status[0].url
+        }
+        
+        env {
+          name  = "FIREBASE_PROJECT_ID"
+          value = var.project_id
         }
         
         # Add database configuration
@@ -181,13 +119,7 @@ data "google_iam_policy" "noauth" {
   }
 }
 
-resource "google_cloud_run_service_iam_policy" "flask_rag_noauth" {
-  location    = var.region
-  project     = var.project_id
-  service     = google_cloud_run_service.flask_rag.name
-  policy_data = data.google_iam_policy.noauth.policy_data
-  depends_on = [google_cloud_run_service.flask_rag]
-}
+# We no longer need flask-rag IAM policy
 
 resource "google_cloud_run_service_iam_policy" "node_backend_noauth" {
   location    = var.region

@@ -65,7 +65,7 @@
 <script>
 import { ref, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
-import { ASK_QUESTION } from '../graphql/queries'
+import { ASK_QUESTION, ASK_FIREBASE } from '../graphql/queries'
 import { executeGraphQL } from '../graphql/apollo-client'
 
 export default {
@@ -111,23 +111,22 @@ export default {
         await scrollToBottom()
 
         // Make GraphQL mutation call using the executeGraphQL function
-        const response = await executeGraphQL(ASK_QUESTION, {
+        const response = await executeGraphQL(ASK_FIREBASE, {
           query: userMessage,
-          k: 5,
-          scoreThreshold: 0.2
+          limit: 5
         })
 
         console.log('GraphQL response:', response)
 
         // Add bot response
-        if (response.data.askQuestion.status === 'success') {
+        if (response.data.askFirebase.status === 'success') {
           messages.value.push({
             type: 'bot',
-            content: response.data.askQuestion.answer,
+            content: response.data.askFirebase.answer,
             timestamp: formatTimestamp()
           })
         } else {
-          throw new Error(response.data.askQuestion.message)
+          throw new Error(response.data.askFirebase.message)
         }
 
         await scrollToBottom()

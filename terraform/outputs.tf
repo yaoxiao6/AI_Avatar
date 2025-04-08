@@ -1,8 +1,6 @@
 # AI_Avatar/terraform/outputs.tf
 
-output "flask_rag_url" {
-  value = google_cloud_run_service.flask_rag.status[0].url
-}
+# We no longer need flask_rag_url output
 
 output "node_backend_url" {
   value = google_cloud_run_service.node_backend.status[0].url
