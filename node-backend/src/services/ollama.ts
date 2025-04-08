@@ -44,7 +44,7 @@ class OllamaService {
         plugins: [
           ollama({
             models: [{ name: this.llmModel }],
-            embedders: [{ name: this.embeddingModel, dimensions: 4096 }], // mxbai-embed-large has 4096 dimensions
+            embedders: [{ name: this.embeddingModel, dimensions: 512 }], // mxbai-embed-large recommend 512 dimensions https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1
             requestHeaders: this.config.apiKey ? { 'api-key': this.config.apiKey } : undefined,
             serverAddress: this.config.serverAddress,
           })
@@ -126,7 +126,7 @@ class OllamaService {
         // Make direct API call to Ollama for embeddings
         const response = await axios.post(`${this.config.serverAddress}/api/embeddings`, {
           model: this.embeddingModel,
-          prompt: text
+          prompt: `Represent this sentence for searching relevant passages: ${text}`
         }, {
           headers: this.config.apiKey ? { 'api-key': this.config.apiKey } : undefined
         });

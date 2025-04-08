@@ -58,7 +58,7 @@ class FirebaseService {
       const customEmbedder = this.ai.defineEmbedder({
         name: 'ollamaEmbedder',
         info: {
-          dimensions: 4096, // Replace with the actual dimensions of your embeddings if known
+          dimensions: 512, // https://huggingface.co/mixedbread-ai/mxbai-embed-large-v1
         }
       }, async (input) => {
         // Check if input is an array of documents
@@ -323,8 +323,20 @@ class FirebaseService {
       }
 
       // Create context from retrieved documents
-      const context = docs.map(doc => doc.content).join('\n\n');
-      
+      logger.debug(`Retrieved documents: ${JSON.stringify(docs)}`);
+
+      // Extract text from the nested structure
+      const context = docs.map(doc => {
+        // Check if content is an array of objects with text property
+        if (Array.isArray(doc.content) && doc.content.length > 0 && doc.content[0].text) {
+          return doc.content.map((item: { text: string }) => item.text).join(' ');
+        }
+        // Fallback if structure is different
+        return typeof doc.content === 'string' ? doc.content : JSON.stringify(doc.content);
+      }).join(' '); // Join with space instead of newlines
+
+      logger.debug(`Context created from documents: ${JSON.stringify(context)}`);
+
       // Generate answer using Ollama - improved prompt similar to Python version
       const prompt = `
       You are the representative of Yao, who is applying for jobs. 

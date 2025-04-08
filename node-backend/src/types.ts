@@ -31,11 +31,6 @@ export interface ContactResponse {
   message?: string;
 }
 
-// Python service related types
-export interface PythonHealthResponse {
-  status: string;
-}
-
 export interface AskResponse {
   status: string;
   answer?: string;

@@ -21,15 +21,8 @@ import {
   FirebaseAskResponse,
   FirebaseHealthResponse,
   OllamaHealthResponse,
-  OllamaResponse,
-  PythonHealthResponse 
+  OllamaResponse
 } from './types';
-
-interface AskQuestionArgs {
-  query: string;
-  k?: number;
-  scoreThreshold?: number;
-}
 
 interface AskOllamaArgs {
   query: string;
@@ -55,29 +48,30 @@ const resolvers = {
       return 'OK';
     },
     
-    pythonServiceHealth: async (): Promise<PythonHealthResponse> => {
-      try {
-        logger.info(`Checking Python service health at ${config.PYTHON_SERVICE_URL}`);
-        const response: AxiosResponse = await axios.get(`${config.PYTHON_SERVICE_URL}`);
-        logger.info('Python service health check response:', response.data);
+    // Will remove this pythonServiceHealth and related GraphQL code. No longer use the python service. 
+    // pythonServiceHealth: async (): Promise<PythonHealthResponse> => {
+    //   try {
+    //     logger.info(`Checking Python service health at ${config.PYTHON_SERVICE_URL}`);
+    //     const response: AxiosResponse = await axios.get(`${config.PYTHON_SERVICE_URL}`);
+    //     logger.info('Python service health check response:', response.data);
         
-        if (response.data.status === 'healthy') {
-          logger.info('Python service health check successful');
-          return { status: 'healthy' };
-        } else {
-          logger.warn('Python service returned unexpected status', response.data);
-          return { status: 'unhealthy' };
-        }
-      } catch (error) {
-        const axiosError = error as AxiosError;
-        logger.error('Python service health check failed:', {
-          error: axiosError.message,
-          url: config.PYTHON_SERVICE_URL,
-          config: axiosError.config
-        });
-        return { status: 'unhealthy' };
-      }
-    },
+    //     if (response.data.status === 'healthy') {
+    //       logger.info('Python service health check successful');
+    //       return { status: 'healthy' };
+    //     } else {
+    //       logger.warn('Python service returned unexpected status', response.data);
+    //       return { status: 'unhealthy' };
+    //     }
+    //   } catch (error) {
+    //     const axiosError = error as AxiosError;
+    //     logger.error('Python service health check failed:', {
+    //       error: axiosError.message,
+    //       url: config.PYTHON_SERVICE_URL,
+    //       config: axiosError.config
+    //     });
+    //     return { status: 'unhealthy' };
+    //   }
+    // },
     
     ollamaHealth: async (): Promise<OllamaHealthResponse> => {
       try {
@@ -162,69 +156,69 @@ const resolvers = {
   },
   
   Mutation: {
-    askQuestion: async (_: any, { query, k = 5, scoreThreshold = 0.2 }: AskQuestionArgs): Promise<AskResponse> => {
-      logger.info('Processing question');
-      const startTime = Date.now();
+    // askQuestion: async (_: any, { query, k = 5, scoreThreshold = 0.2 }: AskQuestionArgs): Promise<AskResponse> => {
+    //   logger.info('Processing question');
+    //   const startTime = Date.now();
       
-      try {
-        logger.info('Processing question', {
-          query,
-          k,
-          scoreThreshold
-        });
+    //   try {
+    //     logger.info('Processing question', {
+    //       query,
+    //       k,
+    //       scoreThreshold
+    //     });
     
-        logger.debug(`Making request to ${config.PYTHON_SERVICE_URL}/ask`);
+    //     logger.debug(`Making request to ${config.PYTHON_SERVICE_URL}/ask`);
     
-        const response: AxiosResponse = await axios.post(`${config.PYTHON_SERVICE_URL}/ask`, {
-          query,
-          k,
-          score_threshold: scoreThreshold
-        });
+    //     const response: AxiosResponse = await axios.post(`${config.PYTHON_SERVICE_URL}/ask`, {
+    //       query,
+    //       k,
+    //       score_threshold: scoreThreshold
+    //     });
 
-        // Extract only the real response by removing the <think>...</think> part
-        const responseData = response.data as AskResponse;
+    //     // Extract only the real response by removing the <think>...</think> part
+    //     const responseData = response.data as AskResponse;
 
-        console.log('Before cleaning Response answer:', responseData.answer);
+    //     console.log('Before cleaning Response answer:', responseData.answer);
 
-        // Clean the answer field if it contains <think> tags
-        if (responseData.answer && typeof responseData.answer === 'string' && responseData.answer.includes('<think>')) {
-          // Use regex to remove everything between and including <think></think> tags
-          responseData.answer = responseData.answer.replace(/<think>[\s\S]*?<\/think>\s*/, '');
+    //     // Clean the answer field if it contains <think> tags
+    //     if (responseData.answer && typeof responseData.answer === 'string' && responseData.answer.includes('<think>')) {
+    //       // Use regex to remove everything between and including <think></think> tags
+    //       responseData.answer = responseData.answer.replace(/<think>[\s\S]*?<\/think>\s*/, '');
           
-          // Trim any leading/trailing whitespace
-          responseData.answer = responseData.answer.trim();
-        }
+    //       // Trim any leading/trailing whitespace
+    //       responseData.answer = responseData.answer.trim();
+    //     }
 
-        console.log('After cleaning Response answer:', responseData.answer);
+    //     console.log('After cleaning Response answer:', responseData.answer);
 
-        const duration = Date.now() - startTime;
-        logger.info('Question processing completed', {
-          query,
-          duration,
-          responseStatus: response.data.status
-        });
+    //     const duration = Date.now() - startTime;
+    //     logger.info('Question processing completed', {
+    //       query,
+    //       duration,
+    //       responseStatus: response.data.status
+    //     });
 
-        return responseData;
-      } catch (error) {
-        const duration = Date.now() - startTime;
-        const axiosError = error as AxiosError;
+    //     return responseData;
+    //   } catch (error) {
+    //     const duration = Date.now() - startTime;
+    //     const axiosError = error as AxiosError;
         
-        logger.error('Error processing question', {
-          error: axiosError.message,
-          stack: axiosError.stack,
-          duration,
-          query,
-          response: axiosError.response?.data,
-          status: axiosError.response?.status,
-        });
+    //     logger.error('Error processing question', {
+    //       error: axiosError.message,
+    //       stack: axiosError.stack,
+    //       duration,
+    //       query,
+    //       response: axiosError.response?.data,
+    //       status: axiosError.response?.status,
+    //     });
     
-        throw new Error(
-          (axiosError.response?.data as any)?.message || 
-          axiosError.message || 
-          'Error processing question'
-        );
-      }
-    },
+    //     throw new Error(
+    //       (axiosError.response?.data as any)?.message || 
+    //       axiosError.message || 
+    //       'Error processing question'
+    //     );
+    //   }
+    // },
     
     askOllama: async (_: any, { query }: AskOllamaArgs): Promise<OllamaResponse> => {
       logger.info('Processing question with Ollama');
@@ -272,7 +266,7 @@ const resolvers = {
       const startTime = Date.now();
       
       try {
-        logger.info('Processing question with Firebase', { query, limit });
+        logger.info(`Processing question with Firebase with query = ${JSON.stringify(query)}, limit = ${limit}`);
         
         // Call Firebase service to answer question
         const response = await firebaseService.askQuestion(query, limit);

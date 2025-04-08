@@ -5,15 +5,10 @@ import resolvers from './resolvers';
 const typeDefs = `
   type Query {
     health: String
-    pythonServiceHealth: PythonHealthResponse!
     ollamaHealth: OllamaHealthResponse!
     firebaseHealth: FirebaseHealthResponse!
     getContacts: [Contact]
     getContact(id: ID!): Contact
-  }
-
-  type PythonHealthResponse {
-    status: String!
   }
 
   type OllamaHealthResponse {
@@ -27,7 +22,6 @@ const typeDefs = `
   }
 
   type Mutation {
-    askQuestion(query: String!, k: Int, scoreThreshold: Float): AskResponse!
     askOllama(query: String!): OllamaResponse!
     askFirebase(query: String!, limit: Int): FirebaseAskResponse!
     clearVectorStore: ClearResponse!
