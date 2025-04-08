@@ -17,7 +17,10 @@ const config: AppConfig = {
     
     // Ollama configuration
     OLLAMA_SERVER_ADDRESS: process.env.OLLAMA_SERVER_ADDRESS || 'https://ollama-rag-579795762739.us-central1.run.app',
-    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
+    
+    // Firebase configuration
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || 'ai-avatar-451519'
 };
 
 export default config;

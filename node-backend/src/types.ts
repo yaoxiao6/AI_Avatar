@@ -66,6 +66,31 @@ export interface OllamaResponse {
   message?: string;
 }
 
+// Firebase service related types
+export interface FirebaseHealthResponse {
+  status: string;
+  projectId?: string;
+}
+
+export interface FirebaseIngestResponse {
+  status: string;
+  message?: string;
+  count?: number;
+}
+
+export interface FirebaseAskResponse {
+  status: string;
+  answer?: string;
+  message?: string;
+  sources?: FirebaseSource[];
+}
+
+export interface FirebaseSource {
+  content: string;
+  filename?: string;
+  score?: number;
+}
+
 // Database configuration
 export interface DbConfig {
   host: string;
@@ -88,4 +113,5 @@ export interface AppConfig {
   DB_SSL: string;
   OLLAMA_SERVER_ADDRESS: string;
   OLLAMA_API_KEY?: string;
+  FIREBASE_PROJECT_ID: string;
 }

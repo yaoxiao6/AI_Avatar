@@ -7,6 +7,7 @@ const typeDefs = `
     health: String
     pythonServiceHealth: PythonHealthResponse!
     ollamaHealth: OllamaHealthResponse!
+    firebaseHealth: FirebaseHealthResponse!
     getContacts: [Contact]
     getContact(id: ID!): Contact
   }
@@ -20,11 +21,31 @@ const typeDefs = `
     response: String
   }
 
+  type FirebaseHealthResponse {
+    status: String!
+    projectId: String
+  }
+
   type Mutation {
     askQuestion(query: String!, k: Int, scoreThreshold: Float): AskResponse!
     askOllama(query: String!): OllamaResponse!
+    askFirebase(query: String!, limit: Int): FirebaseAskResponse!
     clearVectorStore: ClearResponse!
+    clearFirebase: ClearResponse!
     submitContact(input: ContactInput!): ContactResponse!
+  }
+
+  type FirebaseAskResponse {
+    status: String!
+    answer: String
+    message: String
+    sources: [FirebaseSource]
+  }
+
+  type FirebaseSource {
+    content: String!
+    filename: String
+    score: Float
   }
 
   input ContactInput {

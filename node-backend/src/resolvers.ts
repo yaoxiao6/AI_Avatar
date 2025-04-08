@@ -4,10 +4,13 @@ import FormData from 'form-data';
 import fs from 'fs';
 import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
+import multer from 'multer';
+import path from 'path';
 import config from './config';
 import logger from './utils/logger';
 import db from './utils/db';
 import ollamaService from './services/ollama';
+import firebaseService from './services/firebase';
 import { 
   AskResponse, 
   ClearResponse, 
@@ -15,6 +18,8 @@ import {
   ContactInput, 
   ContactResponse, 
   Context, 
+  FirebaseAskResponse,
+  FirebaseHealthResponse,
   OllamaHealthResponse,
   OllamaResponse,
   PythonHealthResponse 
@@ -28,6 +33,11 @@ interface AskQuestionArgs {
 
 interface AskOllamaArgs {
   query: string;
+}
+
+interface AskFirebaseArgs {
+  query: string;
+  limit?: number;
 }
 
 interface SubmitContactArgs {
@@ -88,6 +98,28 @@ const resolvers = {
           stack: err.stack
         });
         return { status: 'unhealthy', response: err.message };
+      }
+    },
+    
+    firebaseHealth: async (): Promise<FirebaseHealthResponse> => {
+      try {
+        logger.info('Checking Firebase service health');
+        const isHealthy = await firebaseService.healthCheck();
+        
+        if (isHealthy) {
+          logger.info('Firebase service health check successful');
+          return { status: 'healthy', projectId: config.FIREBASE_PROJECT_ID };
+        } else {
+          logger.warn('Firebase service health check failed');
+          return { status: 'unhealthy' };
+        }
+      } catch (error) {
+        const err = error as Error;
+        logger.error('Firebase service health check failed:', {
+          error: err.message,
+          stack: err.stack
+        });
+        return { status: 'unhealthy' };
       }
     },
     
@@ -235,6 +267,47 @@ const resolvers = {
       }
     },
     
+    askFirebase: async (_: any, { query, limit = 5 }: AskFirebaseArgs): Promise<FirebaseAskResponse> => {
+      logger.info('Processing question with Firebase');
+      const startTime = Date.now();
+      
+      try {
+        logger.info('Processing question with Firebase', { query, limit });
+        
+        // Call Firebase service to answer question
+        const response = await firebaseService.askQuestion(query, limit);
+        
+        const duration = Date.now() - startTime;
+        logger.info('Firebase question processing completed', {
+          query,
+          duration,
+          answerLength: response.answer.length,
+          sourcesCount: response.sources.length
+        });
+
+        return {
+          status: 'success',
+          answer: response.answer,
+          sources: response.sources
+        };
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        const err = error as Error;
+        
+        logger.error('Error processing question with Firebase', {
+          error: err.message,
+          stack: err.stack,
+          duration,
+          query
+        });
+    
+        return {
+          status: 'error',
+          message: err.message || 'Error processing question with Firebase'
+        };
+      }
+    },
+    
     clearVectorStore: async (): Promise<ClearResponse> => {
       const startTime = Date.now();
       try {
@@ -261,6 +334,39 @@ const resolvers = {
         return {
           status: 'error',
           message: err.message || 'Error clearing vector store'
+        };
+      }
+    },
+    
+    clearFirebase: async (): Promise<ClearResponse> => {
+      const startTime = Date.now();
+      try {
+        logger.info('Starting Firebase documents clearance');
+        
+        const count = await firebaseService.clearDocuments();
+        
+        const duration = Date.now() - startTime;
+        logger.info('Firebase documents cleared successfully', {
+          duration,
+          count
+        });
+
+        return {
+          status: 'success',
+          message: `Successfully cleared ${count} documents from Firebase`
+        };
+      } catch (error) {
+        const err = error as Error;
+        const duration = Date.now() - startTime;
+        logger.error('Error clearing Firebase documents', {
+          error: err.message,
+          stack: err.stack,
+          duration
+        });
+
+        return {
+          status: 'error',
+          message: err.message || 'Error clearing Firebase documents'
         };
       }
     },
