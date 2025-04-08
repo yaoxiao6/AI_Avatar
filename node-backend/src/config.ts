@@ -20,7 +20,11 @@ const config: AppConfig = {
     OLLAMA_API_KEY: process.env.OLLAMA_API_KEY,
     
     // Firebase configuration
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || 'ai-avatar-451519'
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || 'ai-avatar-451519',
+    FIREBASE_DATABASE_ID: process.env.FIREBASE_DATABASE_ID || 'rag-embedded-pdf',
+
+    // Log level
+    LOG_LEVEL: process.env.LOG_LEVEL || 'info'
 };
 
 export default config;

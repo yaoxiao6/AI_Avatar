@@ -114,4 +114,6 @@ export interface AppConfig {
   OLLAMA_SERVER_ADDRESS: string;
   OLLAMA_API_KEY?: string;
   FIREBASE_PROJECT_ID: string;
+  FIREBASE_DATABASE_ID: string;
+  LOG_LEVEL: string;
 }

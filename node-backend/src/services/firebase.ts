@@ -10,7 +10,8 @@ import config from '../config';
 import ollamaService from './ollama';
 
 // Firebase configuration
-const FIREBASE_COLLECTION = 'documents';
+const FIREBASE_DATABASE_ID = 'rag-embedded-pdf'; // Specify the custom database ID
+const FIREBASE_COLLECTION = 'embedded-pdf'; // Updated collection name
 const CONTENT_FIELD = 'text';
 const VECTOR_FIELD = 'embedding';
 
@@ -35,10 +36,13 @@ class FirebaseService {
       const app = initializeApp({
         projectId: config.FIREBASE_PROJECT_ID,
         credential: applicationDefault(),
+        databaseURL: `https://${config.FIREBASE_PROJECT_ID}.firebaseio.com`,
       });
 
-      // Initialize Firestore
+      // Initialize Firestore with specific database ID
       this.firestore = getFirestore(app);
+      // Specify the database ID
+      this.firestore = getFirestore(app, FIREBASE_DATABASE_ID);
 
       // Set credentials if provided via environment variable
       if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
@@ -107,6 +111,7 @@ class FirebaseService {
       this.isInitialized = true;
       logger.info('Firebase service initialized successfully', {
         projectId: config.FIREBASE_PROJECT_ID,
+        database: FIREBASE_DATABASE_ID,
         collection: FIREBASE_COLLECTION,
         embeddingModel: this.embeddingModel
       });
@@ -149,6 +154,7 @@ class FirebaseService {
       // Try to access the Firestore collection
       const snapshot = await this.firestore.collection(FIREBASE_COLLECTION).limit(1).get();
       logger.info('Firebase health check successful', {
+        database: FIREBASE_DATABASE_ID,
         collection: FIREBASE_COLLECTION,
         empty: snapshot.empty
       });
