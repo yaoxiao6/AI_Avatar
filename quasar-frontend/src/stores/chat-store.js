@@ -14,7 +14,7 @@ export const useChatStore = defineStore('chat', {
     isTyping: false,
     error: null
   }),
-  
+
   actions: {
     addMessage(sender, text) {
       this.messages.push({
@@ -23,19 +23,19 @@ export const useChatStore = defineStore('chat', {
         timestamp: formatTimestamp()
       });
     },
-    
+
     setTyping(value) {
       this.isTyping = value;
     },
-    
+
     setError(error) {
       this.error = error;
     },
-    
+
     async sendToAI(message) {
       this.setTyping(true);
       this.setError(null);
-      
+
       try {
         // Make GraphQL mutation call using the executeGraphQL function
         const response = await executeGraphQL(ASK_QUESTION, {
@@ -43,15 +43,15 @@ export const useChatStore = defineStore('chat', {
           k: 5,
           scoreThreshold: 0.2
         });
-        
+
         console.log('GraphQL response:', response);
-        
+
         // Process the response
-        if (response.data.askQuestion.status === 'success') {
+        if (response.data.askFirebase.status === 'success') {
           this.setTyping(false);
-          return response.data.askQuestion.answer;
+          return response.data.askFirebase.answer;
         } else {
-          throw new Error(response.data.askQuestion.message);
+          throw new Error(response.data.askFirebase.message);
         }
       } catch (error) {
         console.error('Error sending message:', error);
@@ -65,8 +65,8 @@ export const useChatStore = defineStore('chat', {
 
 // Helper function to format timestamp
 function formatTimestamp() {
-  return new Date().toLocaleTimeString([], { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }

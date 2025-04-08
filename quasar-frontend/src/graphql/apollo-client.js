@@ -1,7 +1,7 @@
 // AI_Avatar/quasar-frontend/src/graphql/apollo-client.js
 import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client/core'
 
-const apiUrl = process.env.VUE_APP_API_URL || 'http://localhost:4000/graphql'
+const apiUrl = process.env.VUE_APP_API_URL || 'https://node-backend-579795762739.us-central1.run.app/graphql'
 
 // Create the http link
 const httpLink = createHttpLink({

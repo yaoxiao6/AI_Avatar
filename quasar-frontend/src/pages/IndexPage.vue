@@ -229,21 +229,21 @@ export default {
           console.log('STEP 6: Received GraphQL response:', response)
 
           // Add bot response
-          if (response?.data?.askQuestion?.status === 'success') {
+          if (response?.data?.askFirebase?.status === 'success') {
             console.log('STEP 7: Adding successful bot response')
             messages.value.push({
               type: 'bot',
-              content: response.data.askQuestion.answer,
+              content: response.data.askFirebase.answer,
               timestamp: formatTimestamp(),
             })
 
             // Log retrieval metadata if available
-            if (response.data.askQuestion.metadata) {
-              console.log('Retrieval metadata:', response.data.askQuestion.metadata)
+            if (response.data.askFirebase.metadata) {
+              console.log('Retrieval metadata:', response.data.askFirebase.metadata)
             }
           } else {
             console.error('STEP 8: Bot response indicates failure')
-            throw new Error(response?.data?.askQuestion?.message || 'Unknown GraphQL error')
+            throw new Error(response?.data?.askFirebase?.message || 'Unknown GraphQL error')
           }
         } catch (graphqlError) {
           console.error('GraphQL Error:', graphqlError)
