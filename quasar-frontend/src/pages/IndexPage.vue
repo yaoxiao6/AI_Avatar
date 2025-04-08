@@ -151,7 +151,7 @@
 <script>
 import { ref, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
-import { ASK_QUESTION, HEALTH_QUERY, Flask_HEALTH_QUERY } from '../graphql/queries'
+import { ASK_FIREBASE, HEALTH_QUERY, Flask_HEALTH_QUERY } from '../graphql/queries'
 import { executeGraphQL } from '../graphql/apollo-client'
 
 export default {
@@ -242,10 +242,8 @@ export default {
           
           // Make GraphQL mutation call for the actual message
           console.log('STEP 6: Sending query to GraphQL API')
-          const response = await executeGraphQL(ASK_QUESTION, {
-            query: userMessage,
-            k: 5,
-            scoreThreshold: 0.2
+          const response = await executeGraphQL(ASK_FIREBASE, {
+            query: userMessage
           })
 
           console.log('STEP 7: Received GraphQL response:', response)

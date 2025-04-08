@@ -8,28 +8,6 @@ export const HEALTH_QUERY = gql`
   }
 `
 
-export const Flask_HEALTH_QUERY = gql`
-  query PythonServiceHealth {
-    pythonServiceHealth {
-      status
-    }
-  }
-`
-
-export const ASK_QUESTION = gql`
-  mutation AskQuestion($query: String!, $k: Int, $scoreThreshold: Float) {
-    askQuestion(query: $query, k: $k, scoreThreshold: $scoreThreshold) {
-      status
-      answer
-      message
-      metadata {
-        contextFound
-        numChunksRetrieved
-      }
-    }
-  }
-`
-
 export const ASK_FIREBASE = gql`
   mutation AskFirebase($query: String!, $limit: Int) {
     askFirebase(query: $query, limit: $limit) {
