@@ -13,7 +13,11 @@ const config: AppConfig = {
     DB_NAME: process.env.DB_NAME || 'ai_avatar_db',
     DB_USER: process.env.DB_USER || 'ai_avatar_user',
     DB_PASSWORD: process.env.DB_PASSWORD || 'HiGcp1004!',
-    DB_SSL: process.env.DB_SSL || 'false'
+    DB_SSL: process.env.DB_SSL || 'false',
+    
+    // Ollama configuration
+    OLLAMA_SERVER_ADDRESS: process.env.OLLAMA_SERVER_ADDRESS || 'https://node-backend-579795762739.us-central1.run.app',
+    OLLAMA_API_KEY: process.env.OLLAMA_API_KEY
 };
 
 export default config;

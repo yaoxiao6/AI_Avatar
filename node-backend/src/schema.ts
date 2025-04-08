@@ -6,6 +6,7 @@ const typeDefs = `
   type Query {
     health: String
     pythonServiceHealth: PythonHealthResponse!
+    ollamaHealth: OllamaHealthResponse!
     getContacts: [Contact]
     getContact(id: ID!): Contact
   }
@@ -14,8 +15,13 @@ const typeDefs = `
     status: String!
   }
 
+  type OllamaHealthResponse {
+    status: String!
+  }
+
   type Mutation {
     askQuestion(query: String!, k: Int, scoreThreshold: Float): AskResponse!
+    askOllama(query: String!): OllamaResponse!
     clearVectorStore: ClearResponse!
     submitContact(input: ContactInput!): ContactResponse!
   }
@@ -57,6 +63,13 @@ const typeDefs = `
 
   type ClearResponse {
     status: String!
+    message: String
+  }
+
+  type OllamaResponse {
+    status: String!
+    answer: String
+    model: String
     message: String
   }
 `;

@@ -53,6 +53,18 @@ export interface ClearResponse {
   message?: string;
 }
 
+// Ollama service related types
+export interface OllamaHealthResponse {
+  status: string;
+}
+
+export interface OllamaResponse {
+  status: string;
+  answer?: string;
+  model?: string;
+  message?: string;
+}
+
 // Database configuration
 export interface DbConfig {
   host: string;
@@ -73,4 +85,6 @@ export interface AppConfig {
   DB_USER: string;
   DB_PASSWORD: string;
   DB_SSL: string;
+  OLLAMA_SERVER_ADDRESS: string;
+  OLLAMA_API_KEY?: string;
 }

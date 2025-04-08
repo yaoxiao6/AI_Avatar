@@ -7,6 +7,7 @@ import { finished } from 'stream/promises';
 import config from './config';
 import logger from './utils/logger';
 import db from './utils/db';
+import ollamaService from './services/ollama';
 import { 
   AskResponse, 
   ClearResponse, 
@@ -14,6 +15,8 @@ import {
   ContactInput, 
   ContactResponse, 
   Context, 
+  OllamaHealthResponse,
+  OllamaResponse,
   PythonHealthResponse 
 } from './types';
 
@@ -21,6 +24,10 @@ interface AskQuestionArgs {
   query: string;
   k?: number;
   scoreThreshold?: number;
+}
+
+interface AskOllamaArgs {
+  query: string;
 }
 
 interface SubmitContactArgs {
@@ -57,6 +64,28 @@ const resolvers = {
           error: axiosError.message,
           url: config.PYTHON_SERVICE_URL,
           config: axiosError.config
+        });
+        return { status: 'unhealthy' };
+      }
+    },
+    
+    ollamaHealth: async (): Promise<OllamaHealthResponse> => {
+      try {
+        logger.info('Checking Ollama service health');
+        const isHealthy = await ollamaService.healthCheck();
+        
+        if (isHealthy) {
+          logger.info('Ollama service health check successful');
+          return { status: 'healthy' };
+        } else {
+          logger.warn('Ollama service is unhealthy');
+          return { status: 'unhealthy' };
+        }
+      } catch (error) {
+        const err = error as Error;
+        logger.error('Ollama service health check failed:', {
+          error: err.message,
+          stack: err.stack
         });
         return { status: 'unhealthy' };
       }
@@ -162,6 +191,47 @@ const resolvers = {
           axiosError.message || 
           'Error processing question'
         );
+      }
+    },
+    
+    askOllama: async (_: any, { query }: AskOllamaArgs): Promise<OllamaResponse> => {
+      logger.info('Processing question with Ollama');
+      const startTime = Date.now();
+      
+      try {
+        logger.info('Processing question with Ollama', { query });
+        
+        // Call Ollama service to generate text
+        const response = await ollamaService.generateText(query);
+        
+        const duration = Date.now() - startTime;
+        logger.info('Ollama question processing completed', {
+          query,
+          duration,
+          responseLength: response.text.length,
+          model: response.model
+        });
+
+        return {
+          status: 'success',
+          answer: response.text,
+          model: response.model
+        };
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        const err = error as Error;
+        
+        logger.error('Error processing question with Ollama', {
+          error: err.message,
+          stack: err.stack,
+          duration,
+          query
+        });
+    
+        return {
+          status: 'error',
+          message: err.message || 'Error processing question with Ollama'
+        };
       }
     },
     
