@@ -15,6 +15,11 @@ export const useContactStore = defineStore('contact', {
       this.error = null;
       
       try {
+        // Validate that required fields are present
+        if (!formData.name || !formData.email) {
+          throw new Error('Name and email are required fields');
+        }
+        
         // Here we'll use GraphQL to submit the contact form
         const response = await executeGraphQL(SUBMIT_CONTACT, {
           input: {
@@ -29,27 +34,28 @@ export const useContactStore = defineStore('contact', {
         console.log('Contact form submission response:', response);
         
         // Check if the submission was successful
-        if (response.data.submitContact.status === 'success') {
+        if (response?.data?.submitContact?.status === 'success') {
           this.submitted = true;
           this.loading = false;
           return true;
         } else {
-          throw new Error(response.data.submitContact.message || 'Failed to submit form');
+          throw new Error(response?.data?.submitContact?.message || 'Failed to submit form');
         }
       } catch (error) {
-        // If backend integration is not ready yet, we'll simulate success for demonstration
-        // IMPORTANT: Remove this block when backend is ready
-        if (!SUBMIT_CONTACT || error.message.includes('Cannot query field')) {
-          console.warn('Backend not ready, simulating success');
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          this.submitted = true;
-          this.loading = false;
-          return true;
+        // Check for GraphQL specific errors
+        const graphQLErrors = error?.graphQLErrors || [];
+        if (graphQLErrors.length > 0) {
+          console.error('GraphQL errors:', graphQLErrors);
+          this.error = graphQLErrors.map(e => e.message).join(', ');
+        } else if (error?.networkError) {
+          console.error('Network error:', error.networkError);
+          this.error = 'Network error: Unable to reach the server';
+        } else {
+          // Real error handling
+          console.error('Error submitting form:', error);
+          this.error = error.message || 'Failed to submit form';
         }
         
-        // Real error handling
-        console.error('Error submitting form:', error);
-        this.error = error.message || 'Failed to submit form';
         this.loading = false;
         return false;
       }
