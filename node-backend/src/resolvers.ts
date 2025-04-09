@@ -8,7 +8,6 @@ import multer from 'multer';
 import path from 'path';
 import config from './config';
 import logger from './utils/logger';
-import db from './utils/db';
 import ollamaService from './services/ollama';
 import firebaseService from './services/firebase';
 import { 
@@ -119,13 +118,13 @@ const resolvers = {
     
     getContacts: async (): Promise<Contact[]> => {
       try {
-        logger.info('Fetching all contacts');
-        const contacts: Contact[] = await db.getContacts();
-        logger.info(`Retrieved ${contacts.length} contacts`);
+        logger.info('Fetching all contacts from Firebase');
+        const contacts: Contact[] = await firebaseService.getContacts();
+        logger.info(`Retrieved ${contacts.length} contacts from Firebase`);
         return contacts;
       } catch (error) {
         const err = error as Error;
-        logger.error('Error retrieving contacts', {
+        logger.error('Error retrieving contacts from Firebase', {
           error: err.message,
           stack: err.stack
         });
@@ -135,18 +134,18 @@ const resolvers = {
     
     getContact: async (_: any, { id }: GetContactArgs): Promise<Contact> => {
       try {
-        logger.info(`Fetching contact with ID: ${id}`);
-        const contact = await db.getContactById(id);
+        logger.info(`Fetching contact with ID: ${id} from Firebase`);
+        const contact = await firebaseService.getContactById(id);
         
         if (!contact) {
-          logger.warn(`No contact found with ID: ${id}`);
+          logger.warn(`No contact found with ID: ${id} in Firebase`);
           throw new Error(`Contact with ID ${id} not found`);
         }
         
         return contact;
       } catch (error) {
         const err = error as Error;
-        logger.error(`Error retrieving contact with ID: ${id}`, {
+        logger.error(`Error retrieving contact with ID: ${id} from Firebase`, {
           error: err.message,
           stack: err.stack
         });
@@ -373,11 +372,11 @@ const resolvers = {
           email: input.email
         });
         
-        // Save contact to PostgreSQL database
-        const savedContact = await db.saveContact(input);
+        // Save contact to Firebase
+        const savedContact = await firebaseService.saveContact(input);
         
         const duration = Date.now() - startTime;
-        logger.info('Contact form submission saved successfully to database', {
+        logger.info('Contact form submission saved successfully to Firebase', {
           name: input.name,
           email: input.email,
           id: savedContact.id,

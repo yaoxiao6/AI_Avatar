@@ -8,12 +8,14 @@ import pdf from 'pdf-parse';
 import logger from '../utils/logger';
 import config from '../config';
 import ollamaService from './ollama';
+import { Contact, ContactInput } from '../types';
 
 // Firebase configuration
 const FIREBASE_DATABASE_ID = 'rag-embedded-pdf'; // Specify the custom database ID
 const FIREBASE_COLLECTION = 'embedded-pdf'; // Updated collection name
 const CONTENT_FIELD = 'text';
 const VECTOR_FIELD = 'embedding';
+const CONTACTS_COLLECTION = 'visitor-contact'; // Collection for storing contacts
 
 // Chunking configuration - align with Python settings
 const CHUNK_SIZE = 512;
@@ -28,6 +30,140 @@ class FirebaseService {
 
   constructor() {
     this.init();
+  }
+  
+  /**
+   * Save a new contact to Firebase
+   * @param contact The contact data to save
+   * @returns The saved contact with ID
+   */
+  async saveContact(contactInput: ContactInput): Promise<Contact> {
+    if (!this.isInitialized) {
+      this.init();
+      if (!this.isInitialized) {
+        throw new Error('Firebase service is not initialized');
+      }
+    }
+
+    try {
+      logger.info('Saving contact to Firebase', { 
+        name: contactInput.name, 
+        email: contactInput.email 
+      });
+      
+      const contactData = {
+        name: contactInput.name,
+        company: contactInput.company || null,
+        email: contactInput.email,
+        phone: contactInput.phone || null,
+        note: contactInput.note || null,
+        created_at: new Date().toISOString()
+      };
+      
+      // Add to Firestore
+      const docRef = await this.firestore.collection(CONTACTS_COLLECTION).add(contactData);
+      
+      logger.info('Contact saved successfully to Firebase', {
+        id: docRef.id,
+        name: contactInput.name,
+        email: contactInput.email
+      });
+      
+      // Return the complete contact with the generated ID
+      return {
+        id: docRef.id,
+        ...contactData
+      } as Contact;
+    } catch (error) {
+      logger.error('Error saving contact to Firebase', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get all contacts from Firebase
+   * @returns Array of contact records
+   */
+  async getContacts(): Promise<Contact[]> {
+    if (!this.isInitialized) {
+      this.init();
+      if (!this.isInitialized) {
+        throw new Error('Firebase service is not initialized');
+      }
+    }
+
+    try {
+      logger.info('Fetching all contacts from Firebase');
+      
+      // Query Firestore
+      const snapshot = await this.firestore.collection(CONTACTS_COLLECTION)
+        .orderBy('created_at', 'desc')
+        .get();
+      
+      // Map to Contact objects
+      const contacts: Contact[] = snapshot.docs.map((doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          company: data.company,
+          email: data.email,
+          phone: data.phone,
+          note: data.note,
+          created_at: data.created_at
+        } as Contact;
+      });
+      
+      logger.info(`Retrieved ${contacts.length} contacts from Firebase`);
+      return contacts;
+    } catch (error) {
+      logger.error('Error retrieving contacts from Firebase', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Get a single contact by ID from Firebase
+   * @param id The contact ID
+   * @returns The contact record
+   */
+  async getContactById(id: string): Promise<Contact | null> {
+    if (!this.isInitialized) {
+      this.init();
+      if (!this.isInitialized) {
+        throw new Error('Firebase service is not initialized');
+      }
+    }
+
+    try {
+      logger.info(`Fetching contact with ID: ${id} from Firebase`);
+      
+      // Get document from Firestore
+      const doc = await this.firestore.collection(CONTACTS_COLLECTION).doc(id).get();
+      
+      if (!doc.exists) {
+        logger.warn(`No contact found with ID: ${id} in Firebase`);
+        return null;
+      }
+      
+      const data = doc.data();
+      
+      // Map to Contact object
+      const contact: Contact = {
+        id: doc.id,
+        name: data.name,
+        company: data.company,
+        email: data.email,
+        phone: data.phone,
+        note: data.note,
+        created_at: data.created_at
+      };
+      
+      return contact;
+    } catch (error) {
+      logger.error(`Error retrieving contact with ID: ${id} from Firebase`, error);
+      throw error;
+    }
   }
 
   private init(): void {
