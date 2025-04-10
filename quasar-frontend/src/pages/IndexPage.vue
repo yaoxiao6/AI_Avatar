@@ -10,7 +10,7 @@
 
       <div class="row q-col-gutter-md">
         <!-- Chat Section -->
-        <div class="col-12 col-md-8">
+        <div class="col-12 col-lg-8 col-md-7">
           <q-card class="chat-section">
             <div class="profile-header">
               <q-avatar size="60px" class="q-mr-md">
@@ -24,12 +24,14 @@
               </div>
             </div>
 
-            <!-- Properly using q-scroll-area component -->
-            <q-scroll-area ref="scrollArea" class="chat-area" style="height: 400px">
+            <!-- Responsive chat area using dynamic height calculation -->
+            <q-scroll-area ref="scrollArea" class="chat-area">
               <div class="q-pa-md">
-                <template v-for="(message, index) in messages" :key="index">
+                <!-- Use v-for without key on template, apply keys to the actual elements instead -->
+                <template v-for="(message, index) in messages">
                   <q-chat-message
                     v-if="message.type === 'user'"
+                    :key="'user-' + index"
                     :text="[message.content]"
                     sent
                     text-color="white"
@@ -39,7 +41,7 @@
                     <template v-slot:stamp>{{ message.timestamp }}</template>
                   </q-chat-message>
 
-                  <q-chat-message v-else bg-color="grey-3">
+                  <q-chat-message v-else :key="'bot-' + index" bg-color="grey-3">
                     <template v-slot:name>Yao</template>
                     <template v-slot:stamp>{{ message.timestamp }}</template>
                     <div v-html="formatThinkContent(message.content)"></div>
@@ -76,7 +78,7 @@
         </div>
 
         <!-- Contact Section -->
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-lg-4 col-md-5">
           <q-card class="contact-section">
             <q-card-section>
               <h2 class="text-primary q-mt-none q-mb-md">Get in Touch</h2>
@@ -134,7 +136,7 @@
 </template>
 
 <script>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { ASK_FIREBASE, HEALTH_QUERY } from '../graphql/queries'
 import { executeGraphQL } from '../graphql/apollo-client'
@@ -163,6 +165,36 @@ export default {
       note: '',
     })
     const submitted = ref(false)
+
+    // Responsive height management
+    const updateChatAreaHeight = () => {
+      if (!scrollArea.value) return
+      
+      const isMobile = window.innerWidth < 600
+      const isTablet = window.innerWidth >= 600 && window.innerWidth < 1024
+      
+      // Dynamic height calculation based on screen size
+      if (isMobile) {
+        scrollArea.value.$el.style.height = '350px'
+      } else if (isTablet) {
+        scrollArea.value.$el.style.height = '400px'
+      } else {
+        scrollArea.value.$el.style.height = '450px'
+      }
+    }
+
+    // Set up resize listener for responsive behavior
+    onMounted(() => {
+      window.addEventListener('resize', updateChatAreaHeight)
+      // Initial call to set height
+      nextTick(() => {
+        updateChatAreaHeight()
+      })
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('resize', updateChatAreaHeight)
+    })
 
     const formatTimestamp = () => {
       return new Date().toLocaleTimeString([], {
@@ -359,7 +391,8 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+/* Using global styles to ensure chat components are responsive */
 .chat-section {
   border-radius: 8px;
   overflow: hidden;
@@ -376,6 +409,24 @@ export default {
   background-color: $primary;
   padding: 15px;
   color: white;
+}
+
+/* Make profile header responsive on very small screens */
+@media (max-width: 400px) {
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+    padding: 10px;
+  }
+  
+  .profile-header .q-avatar {
+    margin-right: 0 !important;
+    margin-bottom: 10px;
+  }
+  
+  .profile-status {
+    font-size: 12px !important;
+  }
 }
 
 .profile-info {
@@ -395,6 +446,7 @@ export default {
 .chat-area {
   flex: 1;
   background-color: #f9f9f9;
+  min-height: 200px; /* Ensure a minimum height */
 }
 
 .message-input {
@@ -403,5 +455,32 @@ export default {
 
 .contact-section {
   height: 100%;
+}
+
+/* Chat messages responsive adjustments */
+@media (max-width: 600px) {
+  .q-message-text {
+    max-width: 80vw !important;
+  }
+  
+  .profile-name {
+    font-size: 16px;
+  }
+  
+  /* Adjust container padding on small screens */
+  .q-page {
+    padding: 8px !important;
+  }
+  
+  /* Reduce header spacing on mobile */
+  header.text-center {
+    padding: 10px 0 !important;
+    margin-bottom: 12px !important;
+  }
+  
+  /* Smaller heading on mobile */
+  header h1 {
+    font-size: 1.5rem;
+  }
 }
 </style>
